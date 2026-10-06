@@ -4,6 +4,47 @@ The version is the git tag; there is no version file. Each release is also on
 [the releases page](https://github.com/selfishprimate/seekter/releases) with the
 same text.
 
+## v0.3.0 — 6 October 2026
+
+Settings move into one file with defaults, and a setup you stop halfway still
+runs.
+
+### One `{{` in the profile stopped every run
+
+`/seekter-run` refused to start while `profile/profile.md` still held a single
+`{{…}}`, even when the missing answer was optional, like a notice period or a
+second CV. A setup interrupted at question 20 of 40 gave you nothing to run.
+Now only four things stop a run, because no default can stand in for them: the
+profile itself, the application email, the default CV and the country you live
+and work in. Every other gap is asked when a form needs it, the way `ASK` always
+was.
+
+### Every switch in one file
+
+Settings were split between `profile/search.json` and sentences inside
+`profile/profile.md`, so changing one meant knowing where it lived.
+`profile/settings.json` now holds every switch and number: queries, title
+filters, boards, the LinkedIn mode and its limits, the same-company window.
+Each key is documented in `templates/settings.json`, and a key you leave out
+runs on the template's default. You can edit the file by hand.
+
+- `/seekter-init` creates it right after the disclaimer and writes each answer
+  the moment you give it.
+- `python3 scripts/seekter.py settings` shows what is in effect, and
+  `settings --check` lists what is still on a default and says plainly what, if
+  anything, needs fixing.
+- Guardrails are not settings. Nothing in the file can make Seekter solve a
+  CAPTCHA, create an account, accept terms for you, or fill LinkedIn Easy Apply.
+
+### Upgrading
+
+Nothing to do by hand. Your `profile/search.json` is renamed to
+`profile/settings.json` the first time a command reads it, with every value
+unchanged. If you have created a `settings.json` yourself and still have the old
+file, Seekter warns instead of guessing; move what you need and delete
+`search.json`. Your `profile/`, `applications/` and `runs/` are otherwise
+untouched.
+
 ## v0.2.2 — 6 October 2026
 
 A bug-fix release. The 30-day rule from 0.2.1 could hold a company you had never
