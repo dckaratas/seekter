@@ -4,6 +4,55 @@ The version is the git tag; there is no version file. Each release is also on
 [the releases page](https://github.com/selfishprimate/seekter/releases) with the
 same text.
 
+## v0.2.2 — 6 October 2026
+
+A bug-fix release. The 30-day rule from 0.2.1 could hold a company you had never
+applied to, and a held posting is skipped, so the cost was an application.
+
+### The same-company check matched part of a word
+
+`check` and `check-many` compared company names as substrings. A short name
+matched any company that contained it: measured 5 and 6 Oct, "telli" matched
+Intellias and Intermedia Intelligent, and "Flex" matched WorkFlex and Engiflex.
+Both were held under the 30-day rule, and the run reported them as on hold
+rather than new, which reads like a correct decision. If you are on 0.2.1, any
+posting held by a company whose name is part of another word may have been
+skipped for nothing; the report's "On hold" list names the earlier role, which
+is the place to check.
+
+The check now matches the name or whole words of it. "Hays" still matches
+"Hays Poland"; "Flex" no longer matches "WorkFlex".
+
+### A record's answers could only be added by hand
+
+A hand-off often gets its free-text answers after the record exists. There was
+no command for it, and the tracker is meant to be written only through the CLI.
+`move` now takes `--answers` and appends them to the record's Answers section.
+
+### Running the same move twice wrote the log line twice
+
+A batch of rejections run twice doubled the line on 27 records. `move` now skips
+a line identical to the last one, and `normalize` collapses adjacent repeats in
+files you already have.
+
+### Also
+
+- `MANIFESTO.md` is new: why Seekter exists and the principles it is built on.
+- `CONTRIBUTING.md` asks for a proposal issue before anything larger than a fix.
+- The README no longer lists salary among the rules postings are filtered
+  against; pay is only ever an answer to a form question.
+- Ashby: the application form can be read before a tab is opened, from the job
+  page's own public endpoint.
+- Teamtailor: a knockout answer dims the form and looks exactly like a frozen
+  page. The tell is a line under the radios.
+- Working Nomads: apply links resolve with a plain `curl`, no browser needed.
+
+### Upgrading
+
+Nothing to migrate. Replace the files and keep your `profile/`, `applications/`
+and `runs/`; they are git-ignored and not touched. To clear doubled log lines
+from an earlier double run, run `python3 scripts/seekter.py normalize`.
+
 ## v0.2.1 — 4 October 2026
 
 A bug-fix release. Both fixes are about the tracker letting something through
