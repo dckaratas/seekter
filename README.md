@@ -131,7 +131,7 @@ python3 scripts/seekter.py normalize --dry-run                # tidy enum values
 python3 scripts/seekter.py migrate                             # one-off: old applications/<status>/ folders -> month folders
 ```
 
-`normalize` lowercases `source`, `ats` and `apply_type`, derives the application system (`ats`) from the posting URL, and moves an ATS name that was stored as `source` (a common mix-up in hand-kept trackers) into `ats`. The CSV importer and `add` already do this; run it after editing files by hand.
+`normalize` lowercases `source`, `ats` and `apply_type`, derives the application system (`ats`) from the posting URL, and moves an ATS name that was stored as `source` (a common mix-up in hand-kept trackers) into `ats`. It also collapses a log line written twice in a row. The CSV importer and `add` already do the rest; run it after editing files by hand.
 
 ### Importing an existing tracker
 
