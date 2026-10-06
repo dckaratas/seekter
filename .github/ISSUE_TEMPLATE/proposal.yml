@@ -28,6 +28,9 @@ body:
     attributes:
       label: What problem it solves
       description: What is missing or not working, and who would benefit from the change.
+      placeholder: |
+        Postings from one board are swept but never deduplicated against the same
+        job on the employer's own ATS, so the same role shows up twice in a run.
     validations:
       required: true
 
@@ -36,14 +39,17 @@ body:
     attributes:
       label: What is proposed, and where
       description: Describe the change and where it would live in the repository. Name the files or directories if you know them.
+      placeholder: |
+        A new file in reference/sources/ for the board, plus a row in
+        reference/sources/_core.md.
     validations:
       required: true
 
-  - type: input
+  - type: textarea
     id: maintenance
     attributes:
       label: Who keeps it current
-      description: Optional. Who would keep this current as the kit changes, and how?
+      description: Optional, but often the deciding question. Who would keep this current as the kit changes, and how?
 
   - type: checkboxes
     id: checks
