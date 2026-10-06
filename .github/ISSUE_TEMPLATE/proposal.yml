@@ -1,0 +1,62 @@
+name: A proposal
+description: Propose a document, feature, command or behavior change before building it
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Propose the change before you build it, and wait for a reply before starting.
+
+        The repository stays **English-only**. `CLAUDE.md` is the agent's instructions, not a document for people. See [CONTRIBUTING.md](https://github.com/selfishprimate/seekter/blob/main/CONTRIBUTING.md) for why.
+
+        Don't include your profile, tracker files or real personal values in the proposal.
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind of change
+      options:
+        - A document
+        - A feature or command
+        - A change to how a command behaves
+        - Something else
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem it solves
+      description: What is missing or not working, and who would benefit from the change.
+      placeholder: |
+        Postings from one board are swept but never deduplicated against the same
+        job on the employer's own ATS, so the same role shows up twice in a run.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What is proposed, and where
+      description: Describe the change and where it would live in the repository. Name the files or directories if you know them.
+      placeholder: |
+        A new file in reference/sources/ for the board, plus a row in
+        reference/sources/_core.md.
+    validations:
+      required: true
+
+  - type: textarea
+    id: maintenance
+    attributes:
+      label: Who keeps it current
+      description: Optional, but often the deciding question. Who would keep this current as the kit changes, and how?
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues for the same proposal
+          required: true
+        - label: I have not started building this and will wait for a reply before starting
+          required: true
