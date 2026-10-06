@@ -285,7 +285,7 @@ class TrackerTests(unittest.TestCase):
 
     def test_the_window_comes_from_the_profile(self):
         (self.tmp / "profile").mkdir()
-        (self.tmp / "profile" / "search.json").write_text('{"same_company_days": 0}')
+        (self.tmp / "profile" / "settings.json").write_text('{"same_company_days": 0}')
         self.add(company="Acme", role="Designer", url="https://acme.com/careers/1234567",
                  status="applied", applied="2020-01-01")
         rc, _, _ = self.run_cli("check", "https://acme.com/careers/7654321", "--company", "Acme")
@@ -313,6 +313,93 @@ class TrackerTests(unittest.TestCase):
         rc, out, _ = self.run_cli("check", "https://acme.com/careers/7654321", "--company", "Hays")
         self.assertEqual(rc, 2)
         self.assertIn("HOLD", out)
+
+    # -- settings ------------------------------------------------------------
+
+    def with_template(self):
+        (self.tmp / "templates").mkdir(exist_ok=True)
+        shutil.copy2(SCRIPT.parent.parent / "templates" / "settings.json",
+                     self.tmp / "templates" / "settings.json")
+
+    def test_an_old_search_json_is_moved_not_rewritten(self):
+        # Setups from before the settings file have profile/search.json. Its values
+        # are the user's; the first read moves the file and keeps every one of them.
+        (self.tmp / "profile").mkdir()
+        (self.tmp / "profile" / "search.json").write_text('{"same_company_days": 0, "x": [1]}')
+        self.add(company="Acme", role="Designer", url="https://acme.com/careers/1234567",
+                 status="applied", applied="2020-01-01")
+        rc, _, err = self.run_cli("check", "https://acme.com/careers/7654321", "--company", "Acme")
+        self.assertEqual(rc, 0)
+        self.assertFalse((self.tmp / "profile" / "search.json").exists())
+        self.assertEqual(json.loads((self.tmp / "profile" / "settings.json").read_text()),
+                         {"same_company_days": 0, "x": [1]})
+
+    def test_a_missing_settings_file_is_created_from_the_template(self):
+        self.with_template()
+        rc, out, _ = self.run_cli("settings")
+        self.assertEqual(rc, 0)
+        self.assertTrue((self.tmp / "profile" / "settings.json").exists())
+        self.assertEqual(json.loads(out)["linkedin"]["mode"], "email")
+
+    def test_a_key_left_out_runs_on_the_default(self):
+        # A half-finished /seekter-init leaves a partial file; it must still run.
+        self.with_template()
+        (self.tmp / "profile").mkdir()
+        (self.tmp / "profile" / "settings.json").write_text('{"linkedin": {"mode": "read"}}')
+        rc, out, _ = self.run_cli("settings")
+        cfg = json.loads(out)
+        self.assertEqual(cfg["linkedin"]["mode"], "read")
+        self.assertEqual(cfg["linkedin"]["read_limits"]["searches_per_run"], 15)
+        self.assertEqual(cfg["same_company_days"], 30)
+
+    def test_check_stops_only_on_values_with_no_default(self):
+        self.with_template()
+        rc, out, _ = self.run_cli("settings", "--check")
+        self.assertEqual(rc, 1)
+        self.assertIn("profile/profile.md is missing", out)
+        (self.tmp / "profile" / "documents").mkdir(parents=True)
+        (self.tmp / "profile" / "profile.md").write_text("Email: {{EMAIL}}\nNotice: {{NOTICE}}\n")
+        rc, out, _ = self.run_cli("settings", "--check")
+        self.assertEqual(rc, 1)
+        self.assertIn("application email", out)
+        self.assertIn("no CV file", out)
+        self.assertNotIn("NOTICE", out, "an optional gap is asked later, it does not stop the run")
+        (self.tmp / "profile" / "profile.md").write_text("Email: a@b.c\nNotice: {{NOTICE}}\n")
+        (self.tmp / "profile" / "documents" / "cv.pdf").write_bytes(b"%PDF")
+        rc, out, _ = self.run_cli("settings", "--check")
+        self.assertEqual(rc, 0, out)
+        self.assertIn("using defaults for", out)
+
+    def test_an_old_file_beside_a_new_one_is_reported_not_lost(self):
+        # Found in an end-to-end test on 6 Oct: init copied the template first, after
+        # which the old search.json was never moved and its values silently ignored.
+        (self.tmp / "profile").mkdir()
+        (self.tmp / "profile" / "search.json").write_text('{"same_company_days": 7}')
+        (self.tmp / "profile" / "settings.json").write_text("{}")
+        rc, _, err = self.run_cli("settings")
+        self.assertEqual(rc, 0)
+        self.assertIn("both profile/settings.json and profile/search.json exist", err)
+        self.assertTrue((self.tmp / "profile" / "search.json").exists())
+
+    def test_a_broken_settings_file_is_reported_not_swallowed(self):
+        self.with_template()
+        (self.tmp / "profile").mkdir()
+        for bad in ("{not json", "[1, 2]", '{"linkedin": "read"}'):
+            (self.tmp / "profile" / "settings.json").write_text(bad)
+            rc, out, err = self.run_cli("settings", "--check")
+            self.assertEqual(rc, 1, bad)
+            self.assertNotIn("Traceback", out + err, bad)
+        (self.tmp / "profile" / "settings.json").write_text("{not json")
+        rc, _, err = self.run_cli("check", "https://acme.com/careers/1234567", "--company", "Acme")
+        self.assertIn("could not be read", err, "the hold window must not fall back silently")
+
+    def test_true_is_not_a_number_of_days(self):
+        self.with_template()
+        (self.tmp / "profile").mkdir()
+        (self.tmp / "profile" / "settings.json").write_text('{"same_company_days": true}')
+        rc, out, _ = self.run_cli("settings", "--check")
+        self.assertEqual(rc, 1)
+        self.assertIn("same_company_days", out)
 
     def test_check_reads_a_bare_number_as_a_linkedin_id(self):
         # Measured 4 Oct: `check <a bare LinkedIn id>` keyed the number as is and passed a

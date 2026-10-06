@@ -70,13 +70,15 @@ The **Needs you** table at the top of `applications/README.md` lists everything 
 ```
 profile/
   profile.md          ← everything about you; the only place personal values live
-  search.json         ← queries, regions, title filters, boards
+  settings.json       ← every switch and number: queries, boards, LinkedIn mode, limits
   documents/          ← your CVs and portfolio PDF
 ```
 
 **CVs go in `profile/documents/`.** `/seekter-init` asks for the file path and copies them there; to add or replace one later, drop the PDF in that folder and update the table in `profile/profile.md` §2 (which CV is the default, which one is for which role type). Forms are filled from these files only, so keep the current version here and remove old ones.
 
 To change a rule (a new blacklisted company, a salary band, a city you'd now accept), tell Seekter in chat; it edits `profile/profile.md` and quotes your words there. You can also edit the file by hand.
+
+**`profile/settings.json` holds the switches**, each documented in `templates/settings.json`, and you can edit it by hand at any time. `/seekter-init` writes it from the template before the first question, so a setup you stop halfway still leaves a valid file: a key you never answered runs on the template's default. `python3 scripts/seekter.py settings --check` shows which values are still defaults and whether anything required is missing. Guardrails are not settings: nothing in this file can make Seekter solve a CAPTCHA, create an account or fill LinkedIn Easy Apply. A setup from before v0.3 has `profile/search.json`; the first run moves it to `settings.json` with its values unchanged.
 
 ## The tracker
 
@@ -149,7 +151,7 @@ Column names are matched loosely (Position/Role/Title, Company, Status, Job URL,
 ```
 .claude/skills/     seekter-init · seekter-run · seekter-log · seekter-report · seekter-git
 reference/          sources/ (one file per job source) · ats/ (one file per application form system); each has a _core.md read first
-templates/          profile.md · search.example.json
+templates/          profile.md · settings.json
 scripts/            seekter.py · freehire_sweep.py · import_csv.py
 tests/              tracker CLI tests: python3 -m unittest discover tests
 .github/            leak scan and test workflows · issue and pull request templates

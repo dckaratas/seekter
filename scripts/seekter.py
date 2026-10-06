@@ -15,7 +15,7 @@ applications/README.md and applications/<YYYY-MM>/README.md are generated views.
   python3 scripts/seekter.py stats [--since YYYY-MM-DD]
   python3 scripts/seekter.py migrate [--keep-old]         (v1 status folders -> month folders)
 """
-import argparse, datetime as dt, json, os, re, sys, unicodedata
+import argparse, datetime as dt, json, os, re, shutil, sys, unicodedata
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 
@@ -400,15 +400,67 @@ def fix_meta(r: dict) -> dict:
 # second role at the same company inside the window can be a silent loss that
 # also looks like spam. Measured 2 Oct: two roles at one company and a second
 # role at another went out the same afternoon. The window is the candidate's
-# (`same_company_days` in profile/search.json), 30 days by default.
+# (`same_company_days` in profile/settings.json), 30 days by default.
 HOLDING = ("pending", "applied", "rejected")   # within the window
 ALWAYS_HOLDING = ("interviewing", "offer")      # a live process holds regardless of date
 
 
+# ---------- settings ----------
+# One file holds every switch and number: profile/settings.json, over the defaults in
+# templates/settings.json. A key the user never set falls back to the template, so a
+# half-finished /seekter-init still runs. profile/search.json is the old name; it is
+# moved, not rewritten, the first time anything reads the settings.
+SETTINGS = ROOT / "profile" / "settings.json"
+LEGACY_SETTINGS = ROOT / "profile" / "search.json"
+SETTINGS_TEMPLATE = ROOT / "templates" / "settings.json"
+
+
+def _merge(defaults, mine):
+    out = dict(defaults)
+    for k, v in mine.items():
+        out[k] = _merge(out[k], v) if isinstance(v, dict) and isinstance(out.get(k), dict) else v
+    return out
+
+
+def _defaults() -> dict:
+    try:
+        return json.loads(SETTINGS_TEMPLATE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def settings(create: bool = False) -> dict:
+    """The user's settings over the template's defaults.
+
+    With create=True a missing profile/settings.json is copied from the template, which is
+    what /seekter-run does at start so the user has a file to edit."""
+    if not SETTINGS.exists() and LEGACY_SETTINGS.exists():
+        LEGACY_SETTINGS.rename(SETTINGS)
+        print("moved profile/search.json to profile/settings.json (values unchanged)", file=sys.stderr)
+    elif SETTINGS.exists() and LEGACY_SETTINGS.exists():
+        print("warning: both profile/settings.json and profile/search.json exist; only settings.json is read."
+              " Move any value you still need from search.json, then delete it.", file=sys.stderr)
+    if not SETTINGS.exists():
+        if create and SETTINGS_TEMPLATE.exists():
+            SETTINGS.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(SETTINGS_TEMPLATE, SETTINGS)
+            print("created profile/settings.json from the template; every value is a default", file=sys.stderr)
+        return _defaults()
+    mine = json.loads(SETTINGS.read_text(encoding="utf-8"))
+    if not isinstance(mine, dict):
+        raise ValueError("the top level must be an object { ... }")
+    for k in ("linkedin", "freehire"):
+        if k in mine and not isinstance(mine[k], dict):
+            raise ValueError(f'"{k}" must be an object {{ ... }}')
+    return _merge(_defaults(), mine)
+
+
 def same_company_days() -> int:
     try:
-        return int(json.loads((ROOT / "profile" / "search.json").read_text())["same_company_days"])
-    except (OSError, ValueError, KeyError, TypeError):
+        return int(settings().get("same_company_days", 30))
+    except (OSError, ValueError, TypeError) as e:
+        # Never silently: a broken file would otherwise turn a 90-day window into 30.
+        print(f"warning: profile/settings.json could not be read ({e}); using 30 days", file=sys.stderr)
         return 30
 
 
@@ -569,6 +621,64 @@ def cmd_move(a):
         write(path, meta, append_log(body, note))
     print(path.relative_to(ROOT))
     cmd_index(None, quiet=True)
+
+
+# Values that can't have a default: without them no form can be filled honestly.
+# Everything else still `{{...}}` in the profile is simply unknown, and the run asks.
+REQUIRED_PROFILE = {"EMAIL": "application email", "CV_DEFAULT": "default CV",
+                    "COUNTRY": "country you live and work in"}
+
+
+def _defaulted(defaults, mine, prefix=""):
+    """Settings left out of the user's file or still equal to the template's value."""
+    out = []
+    for k, v in defaults.items():
+        if k.startswith("_"):
+            continue
+        if isinstance(v, dict) and isinstance(mine.get(k), dict):
+            out += _defaulted(v, mine[k], prefix + k + ".")
+        elif k not in mine or mine[k] == v:
+            out.append(prefix + k)
+    return out
+
+
+def cmd_settings(a):
+    try:
+        cfg = settings(create=True)
+    except ValueError as e:
+        sys.exit(f"problem: profile/settings.json is not valid: {e}")
+    if not a.check:
+        def clean(d):
+            return {k: clean(v) if isinstance(v, dict) else v for k, v in d.items() if not k.startswith("_")}
+        print(json.dumps(clean(cfg), indent=1, ensure_ascii=False))
+        return
+    problems = []
+    if cfg.get("linkedin", {}).get("mode") not in ("email", "read"):
+        problems.append("linkedin.mode must be email or read")
+    days = cfg.get("same_company_days")
+    if isinstance(days, bool) or not isinstance(days, int) or days < 0:
+        problems.append("same_company_days must be a whole number of days")
+    prof = ROOT / "profile" / "profile.md"
+    text = prof.read_text(encoding="utf-8") if prof.exists() else ""
+    if not text:
+        problems.append("profile/profile.md is missing (run /seekter-init)")
+    for key, what in REQUIRED_PROFILE.items():
+        if text and "{{" + key + "}}" in text:
+            problems.append(f"profile/profile.md has no {what} yet ({{{{{key}}}}}; run /seekter-init or fill it in)")
+    docs = ROOT / "profile" / "documents"
+    if text and not any(p.suffix.lower() in (".pdf", ".docx", ".doc") for p in docs.glob("*")):
+        problems.append("profile/documents/ has no CV file (.pdf, .doc or .docx)")
+    try:
+        mine = json.loads(SETTINGS.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        mine = {}
+    left = _defaulted(_defaults(), mine)
+    if left:
+        print("using defaults for: " + ", ".join(left))
+    if problems:
+        print("\n".join("problem: " + p for p in problems))
+        sys.exit(1)
+    print("settings ok")
 
 
 def rows(since=None, status=None):
@@ -736,6 +846,8 @@ def main():
     ix = sp.add_parser("index"); ix.set_defaults(fn=cmd_index)
     nm = sp.add_parser("normalize", help="lowercase enums, derive ats from url, fix ats-in-source, drop repeated log lines")
     nm.add_argument("--dry-run", action="store_true"); nm.set_defaults(fn=cmd_normalize)
+    se = sp.add_parser("settings", help="show the settings in effect; --check validates them and the profile's required values")
+    se.add_argument("--check", action="store_true"); se.set_defaults(fn=cmd_settings)
     st = sp.add_parser("stats"); st.add_argument("--since"); st.set_defaults(fn=cmd_stats)
     mg = sp.add_parser("migrate", help="convert applications/<status>/ folders to applications/<YYYY-MM>/")
     mg.add_argument("--keep-old", action="store_true"); mg.set_defaults(fn=cmd_migrate)
