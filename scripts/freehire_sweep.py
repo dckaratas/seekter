@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Step 1 of a run: sweep the freehire.me API with the queries in profile/search.json,
+"""Step 1 of a run: sweep the freehire.me API with the queries in profile/settings.json,
 drop closed / sensitive / wrong-language / stale / off-title / already-tracked postings,
 and print the candidates. Standard library + curl.
 
@@ -13,7 +13,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import seekter  # noqa: E402
 
 ROOT = seekter.ROOT
-CFG = json.loads((ROOT / "profile" / "search.json").read_text(encoding="utf-8"))
+try:
+    CFG = seekter.settings()
+except ValueError as e:
+    sys.exit(f"problem: profile/settings.json is not valid: {e}")
 FH = CFG["freehire"]
 UA = "Mozilla/5.0 seekter"
 OUT = ROOT / "runs" / seekter.TODAY
@@ -39,8 +42,8 @@ def require(*keys):
     instead of sweeping with a default that belongs to someone else's field."""
     missing = [k for k in keys if not (FH.get(k) if k in FH else CFG.get(k))]
     if missing:
-        sys.exit("profile/search.json is missing " + ", ".join(missing) +
-                 ". Run /seekter-init, or fill them in by hand (see templates/search.example.json).")
+        sys.exit("No freehire " + ", ".join(missing) + " in profile/settings.json" +
+                 " yet. Run /seekter-init, or fill them in by hand (see templates/settings.json).")
 
 
 def sweep():

@@ -43,7 +43,7 @@ def get(**kw):
     try: return json.loads(r.stdout).get("data", [])
     except Exception: return []
 rows = {}
-for q in PROFILE_QUERIES:                  # the candidate's target titles, from profile/search.json
+for q in PROFILE_QUERIES:                  # the candidate's target titles, from profile/settings.json
     for cat in ["design", "frontend", "engineering_design", "product"]:
         for reg in PROFILE_REGIONS:        # from the profile, e.g. global, eu, emea, mena
             for j in get(q=q, category=cat, work_mode="remote", regions=reg):

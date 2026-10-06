@@ -1,12 +1,12 @@
 # Sources: core
 
-Reference for the source steps of the run. Everything here is **person- and role-independent**: how each source behaves, what its filters do, and which of its labels lie. Queries, titles, geoIds, board names and cadences belong to one candidate and live in `profile/search.json` and `profile/profile.md`.
+Reference for the source steps of the run. Everything here is **person- and role-independent**: how each source behaves, what its filters do, and which of its labels lie. Queries, titles, geoIds, board names and cadences belong to one candidate and live in `profile/settings.json` and `profile/profile.md`.
 
 Where a measurement needed a concrete query to be verifiable, the number is kept and the query is described by shape ("a two-word title", "one discipline category"). Measurements taken for one discipline say so.
 
 ## How this folder is read
 
-One file per source. **Read this file plus `your-links.md`, `freehire.md` and `linkedin.md` on every run**, because those are steps 0-2 and they are not optional. `linkedin.md` also holds the LinkedIn rule: Easy Apply and any action never, reading only when the user has opted in, and within limits. Read a board's file only when that board is in play for the run, which `profile/search.json` decides. A source with no file here has never been measured; add one rather than growing another.
+One file per source. **Read this file plus `your-links.md`, `freehire.md` and `linkedin.md` on every run**, because those are steps 0-2 and they are not optional. `linkedin.md` also holds the LinkedIn rule: Easy Apply and any action never, reading only when the user has opted in, and within limits. Read a board's file only when that board is in play for the run, which `profile/settings.json` decides. A source with no file here has never been measured; add one rather than growing another.
 
 **When a new source is measured, it gets its own file and a row in the table below.** When a lesson is *not* about one source's own mechanics, it belongs in this file, not in a source file, or it will never be read again.
 

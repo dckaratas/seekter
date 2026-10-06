@@ -1,33 +1,60 @@
 {
-  "_comment": "Machine-readable search config. /seekter-init writes profile/search.json from this template, filling every value from the candidate's own field and geography. Human rules live in profile/profile.md.",
+  "_comment": "Every switch and number Seekter runs on. /seekter-init copies this file to profile/settings.json as soon as the disclaimer is accepted, then writes each answer the moment it is given, so a half-finished setup still leaves a valid file. You can also copy it and edit it by hand. A key you leave out falls back to the value here. Facts about you and your own rules live in profile/profile.md. Guardrails are never settings: CAPTCHAs, accounts, passwords, accepting terms, messages, LinkedIn Easy Apply and LinkedIn actions stay rules in the skills. Check the file with `python3 scripts/seekter.py settings --check`.",
   "_title_filters": "title_keep = the title families worth opening, as one case-insensitive regex. title_drop = wrong seniority, wrong discipline, and the other industries that share your job title. Both are field-specific: build them from the candidate's target titles, then add false positives as runs reveal them. Worked example for a product designer: keep 'product design|\\bux\\b|design system|\\bdesigner\\b', drop 'junior|intern|head of|director|graphic|motion|industrial|mechanical|fpga|pcb|interior|fashion|textile|game artist' (the last eight are other industries whose jobs are also called 'designer').",
-  "_same_company_days": "One application per company within this many days. Greenhouse lets employers auto-reject further applications to a department inside a window, silently. A live interview or offer holds the company whatever the date. See /seekter-run section 2.",
+  "_same_company_days": "One application per company within this many days. Greenhouse lets employers auto-reject further applications to a department inside a window, silently. A live interview or offer holds the company whatever the date. See /seekter-run section 2. 0 keeps only same-day applications on hold; it does not turn the rule off.",
   "same_company_days": 30,
-  "languages": ["en"],
-  "blocked_domains": ["gambling", "adult"],
+  "languages": [
+    "en"
+  ],
+  "blocked_domains": [
+    "gambling",
+    "adult"
+  ],
   "title_keep": "",
   "title_drop": "junior|intern|graduate|werkstudent|praktik|apprentice|head of|director|vp of|chief",
   "freehire": {
     "_categories": "freehire's own taxonomy. A discipline is usually spread over several, so query each one. Run `curl -A seekter 'https://freehire.me/api/v1/jobs/facets?q=<target title>'` to see the categories and counts for this candidate's field.",
     "queries": [],
     "categories": [],
-    "regions": ["global", "eu", "emea", "europe"],
+    "regions": [
+      "global",
+      "eu",
+      "emea",
+      "europe"
+    ],
     "home_country": "",
     "window_days": 3
   },
   "linkedin": {
     "_mode": "email (default): Seekter never opens LinkedIn; it reads the job-alert emails and the links the user brings. read: it also reads searches, the notification feed and job details, read-only, within read_limits, and switches itself back to email at the first warning. Only the user switches read on, after being told it is against LinkedIn's terms. Easy Apply is never filled in either mode. See reference/sources/linkedin.md.",
     "mode": "email",
-    "read_limits": {"searches_per_run": 15, "details_per_run": 60, "min_gap_seconds": 3},
+    "read_limits": {
+      "searches_per_run": 15,
+      "details_per_run": 60,
+      "min_gap_seconds": 3
+    },
     "_searches": "One row per title family x location. Each row is a job alert the candidate creates on LinkedIn (Email delivery) and, in read mode, a search Seekter runs. Keywords unquoted (quotes cut recall). location is for the alert; geo_id is for read-mode searches, from the table in reference/sources/linkedin.md (92000000 = Worldwide, 91000002 = EEA). remote = LinkedIn's Remote filter, which hides hybrid and on-site roles, so add a second row without it where the candidate can work on-site. EEA leaves out the UK and Switzerland.",
     "window": "r259200",
     "searches": [
-      {"keywords": "", "location": "Worldwide", "geo_id": "92000000", "remote": true},
-      {"keywords": "", "location": "European Economic Area", "geo_id": "91000002", "remote": true}
+      {
+        "keywords": "",
+        "location": "Worldwide",
+        "geo_id": "92000000",
+        "remote": true
+      },
+      {
+        "keywords": "",
+        "location": "European Economic Area",
+        "geo_id": "91000002",
+        "remote": true
+      }
     ]
   },
   "_boards": "Job boards for this candidate's field, with how often they are worth a visit. reference/sources/_core.md rates the general ones and reference/sources/ has one file per measured board; niche boards are per-discipline, so ask the candidate which they already read.",
   "boards": [
-    {"name": "", "cadence": "weekly"}
+    {
+      "name": "",
+      "cadence": "weekly"
+    }
   ]
 }

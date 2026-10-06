@@ -16,6 +16,6 @@ Read-only. Data comes from `applications/` via `scripts/seekter.py`, plus `runs/
    - by `location_fit` (A/B/C): sent and replies. A track with many sends and no replies is a targeting signal;
    - top skip reasons (group the Reason column of `applications/<YYYY-MM>/skipped.md` by its first clause).
 4. Every record with `status: pending` is a hand-off (`python3 scripts/seekter.py list --status pending`; also the "Needs you" table in `applications/README.md`): list each with its link and the exact action.
-5. Write 3–5 plain observations with the number behind each ("C-track: 14 sent, 0 replies in 3 weeks"). Suggest at most two changes, each tied to a file (`profile/search.json` query, `profile/profile.md` rule). Don't change them without the user saying yes.
+5. Write 3–5 plain observations with the number behind each ("C-track: 14 sent, 0 replies in 3 weeks"). Suggest at most two changes, each tied to a file (`profile/settings.json` query, `profile/profile.md` rule). Don't change them without the user saying yes.
 
 Save as `runs/report-<YYYY-MM-DD>.md` and show the user the short version.

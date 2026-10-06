@@ -10,7 +10,7 @@ The useful work is filling forms, not finding postings, so Seekter treats Linked
 - fill or submit **Easy Apply**, or open its modal;
 - any action that writes: apply, save, dismiss, follow, connect, message, react, create or edit an alert, resume or discard a draft.
 
-**What it may do depends on `linkedin.mode` in `profile/search.json`:**
+**What it may do depends on `linkedin.mode` in `profile/settings.json`:**
 
 | Mode | LinkedIn pages and APIs | Where LinkedIn postings come from |
 |---|---|---|
@@ -60,7 +60,7 @@ Seekter cannot create or edit alerts. It tells the user what to set up: one aler
 
 ## Mode `read`: limits
 
-Detection comes from volume and rhythm, so the limits are the point of this mode. Defaults live in `linkedin.read_limits` in `profile/search.json`:
+Detection comes from volume and rhythm, so the limits are the point of this mode. Defaults live in `linkedin.read_limits` in `profile/settings.json`:
 
 | Limit | Default | Meaning |
 |---|---|---|
@@ -74,7 +74,7 @@ Detection comes from volume and rhythm, so the limits are the point of this mode
 - a redirect to `/checkpoint/`, `/authwall`, `/uas/login` or a CAPTCHA page;
 - page text about a restriction or unusual activity, in whatever language the account's interface uses ("restricted", "unusual activity", and their equivalents).
 
-Then set `linkedin.mode` back to `email` in `profile/search.json`, say so at the top of the report, and carry on with the other sources. Switching it back to `read` is the user's call.
+Then set `linkedin.mode` back to `email` in `profile/settings.json`, say so at the top of the report, and carry on with the other sources. Switching it back to `read` is the user's call.
 
 ## Mode `read`: methods
 
