@@ -291,6 +291,29 @@ class TrackerTests(unittest.TestCase):
         rc, _, _ = self.run_cli("check", "https://acme.com/careers/7654321", "--company", "Acme")
         self.assertEqual(rc, 0)
 
+    def test_a_name_inside_another_word_is_not_the_same_company(self):
+        # Measured 5 and 6 Oct: "telli" matched Intellias and "Flex" matched WorkFlex,
+        # and both were held under the 30-day rule for employers never applied to.
+        self.add(company="Intellias", role="Designer", url="https://acme.com/careers/1234567",
+                 status="applied")
+        self.add(company="WorkFlex", role="Designer", url="https://b.com/careers/2345678",
+                 status="applied")
+        for name, url in (("telli", "https://c.com/careers/3456789"),
+                          ("Flex", "https://d.com/careers/4567890")):
+            rc, out, _ = self.run_cli("check", url, "--company", name)
+            self.assertEqual(rc, 0, f"{name} must not be held: {out}")
+            self.assertNotIn("same company", out)
+        rc, out, _ = self.run_cli("check-many", stdin="https://c.com/careers/3456789 | telli\n")
+        self.assertTrue(out.startswith("NEW"), out)
+
+    def test_a_whole_word_of_the_company_name_still_matches(self):
+        # The fix must not lose the matches that were right: "Hays" is "Hays Poland".
+        self.add(company="Hays Poland", role="Designer", url="https://acme.com/careers/1234567",
+                 status="applied")
+        rc, out, _ = self.run_cli("check", "https://acme.com/careers/7654321", "--company", "Hays")
+        self.assertEqual(rc, 2)
+        self.assertIn("HOLD", out)
+
     def test_check_reads_a_bare_number_as_a_linkedin_id(self):
         # Measured 4 Oct: `check <a bare LinkedIn id>` keyed the number as is and passed a
         # tracked LinkedIn job as new; only `check-many` normalised it.
@@ -381,6 +404,36 @@ class TrackerTests(unittest.TestCase):
         table = self.skips_table()
         self.assertIn("country list leaves out yours", table)
         self.assertIn(f"[{TODAY}] the form had no country field", table)
+
+    def test_running_the_same_move_twice_logs_it_once(self):
+        # Measured 6 Oct: a batch of rejections was run twice and 27 records got the
+        # same log line twice.
+        path = self.add(company="Acme", role="Designer", url="https://acme.com/careers/1234567")
+        for _ in range(2):
+            rc, _, err = self.run_cli("move", "https://acme.com/careers/1234567", "rejected",
+                                      "--note", "2026-10-05, not moving forward")
+            self.assertEqual(rc, 0, err)
+        self.assertEqual(path.read_text().count("not moving forward"), 1)
+
+    def test_normalize_collapses_a_repeated_log_line(self):
+        path = self.add(company="Acme", role="Designer", url="https://acme.com/careers/1234567")
+        line = "- 2026-10-06: rejected. 2026-10-05, not moving forward\n"
+        path.write_text(path.read_text().rstrip() + "\n" + line + line)
+        rc, out, _ = self.run_cli("normalize")
+        self.assertEqual(rc, 0)
+        self.assertEqual(path.read_text().count("not moving forward"), 1)
+
+    def test_move_appends_answers_to_an_existing_record(self):
+        # Measured 6 Oct: a hand-off's answers arrived after the record existed, and the
+        # only way to store them was a hand edit the tracker forbids.
+        path = self.add(company="Acme", role="Designer", url="https://acme.com/careers/1234567",
+                        status="pending")
+        rc, _, err = self.run_cli("move", "https://acme.com/careers/1234567", "applied",
+                                  "--note", "submitted", "--answers", "Teams: design 4-6")
+        self.assertEqual(rc, 0, err)
+        text = path.read_text()
+        self.assertIn("Teams: design 4-6", text)
+        self.assertLess(text.index("Teams: design 4-6"), text.index("## Log"))
 
     def test_move_rejects_an_unknown_status_and_an_unknown_target(self):
         rc, _, err = self.run_cli("move", "https://acme.com/x", "ghosted")
