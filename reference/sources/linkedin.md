@@ -66,7 +66,7 @@ Detection comes from volume and rhythm, so the limits are the point of this mode
 |---|---|---|
 | `searches_per_run` | 15 | Search requests per run, pages included. Rows beyond it rotate: start the next run where this one stopped, and keep the index in `runs/linkedin-state.json` |
 | `details_per_run` | 60 | Job detail requests per run, job pages opened in the browser included. Fetch details only for title matches |
-| `min_gap_seconds` | 3 | Pause between any two LinkedIn requests. Requests run one after another, never in parallel |
+| `min_gap_seconds` · `max_gap_seconds` | 4 · 9 | Pause between any two LinkedIn requests, drawn at random from this range each time. A fixed gap is a rhythm no person keeps, and rhythm is half of what detection reads. Requests run one after another, never in parallel |
 | notification feed | once per run | One page load, one harvest |
 
 **Stop signals.** Any of these ends LinkedIn reading for the run at once, before another request:
@@ -78,7 +78,7 @@ Then set `linkedin.mode` back to `email` in `profile/settings.json`, say so at t
 
 ## Mode `read`: methods
 
-Requests run in the page context of an open `linkedin.com` tab. `window.CSRF = document.cookie.match(/JSESSIONID="?([^";]+)"?/)[1]`. Every fetch is followed by `await new Promise(r=>setTimeout(r, gap*1000))`; at the default gap, eight requests fit inside one JS call's 45 s budget.
+Requests run in the page context of an open `linkedin.com` tab. `window.CSRF = document.cookie.match(/JSESSIONID="?([^";]+)"?/)[1]`. Every fetch is followed by `await new Promise(r=>setTimeout(r, (min+Math.random()*(max-min))*1000))`, with `min` and `max` from `read_limits`. At the default range, run at most four requests per JS call so the slowest draw still fits inside the 45 s budget.
 
 **Searches** (Voyager REST, relevance order):
 ```js
