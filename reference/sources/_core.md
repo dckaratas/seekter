@@ -79,6 +79,13 @@ That shape exists to be impossible to match except by the person already in the 
 
 Lesson, and it is the transferable one: **generic remote boards are US-heavy and stale, while one good niche board for the candidate's discipline outperforms all of them.** After this measurement the board step shrank to one niche board daily, one generic board twice a week, and one discovery-only board monthly. Find the equivalent three for the candidate's field rather than adding more generic boards.
 
+## Pacing on boards read in the browser
+
+Boards opened in Chrome rather than through an API (Indeed, Glassdoor, any listing page Seekter scrolls) see the user's browser, and on some of them the user's account. Read them the way a person would:
+- **Wait 4 to 9 seconds between page loads, drawn at random each time**, the same range as LinkedIn's `read_limits`. Do the wait as a `computer wait` step, not a `setTimeout` (see below). One page at a time, never several tabs of one board at once.
+- **A verification page ends that board for the run**: "Additional verification required", a Cloudflare or CAPTCHA check, a sudden sign-in wall, an HTTP 429. Note it in the report and move on to the next source. Never work around it. The one exception is a cause the board's own file has measured and fixed, like Indeed's empty `l=`: correct the query and retry once.
+- Public APIs (freehire, Jobicy, the ATS board APIs) carry no account and are built to be called, but calls still go one after another, not in parallel bursts.
+
 ## JS execution pitfalls
 - **The async result gets lost:** an `async` IIFE comes back as `{}`. Do the work, write the result to `window.X`, and read it in a **second synchronous call**. 
 - **At most about 3 network calls per JS call.** CDP times out at 45 s. Long `setTimeout` or scroll loops hit the same 45 s timeout, so do waits as separate `computer wait` steps.
