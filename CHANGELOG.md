@@ -4,6 +4,36 @@ The version is the git tag; there is no version file. Each release is also on
 [the releases page](https://github.com/selfishprimate/seekter/releases) with the
 same text.
 
+## v0.3.1 — 7 October 2026
+
+Reading is paced like a person, and a verification page is a stop sign.
+
+### LinkedIn reads kept a fixed rhythm
+
+In `read` mode every LinkedIn request was followed by exactly 3 seconds of
+waiting. Detection reads volume and rhythm, and a gap that never varies is a
+rhythm no person keeps. `linkedin.read_limits` gains `max_gap_seconds`, and
+each pause is now drawn at random between `min_gap_seconds` and it: 4 to 9
+seconds by default. A run reads a little slower; the limits on searches and
+details are unchanged.
+
+### Boards read in the browser had no pace at all
+
+Only LinkedIn had written limits. Indeed, Glassdoor and any listing page
+Seekter scrolls in your Chrome had no rule for the gap between pages, and no
+rule for what a Cloudflare or CAPTCHA page meant. They now get the same random
+4 to 9 seconds, one page at a time, and a verification page ends that board for
+the run: it goes in the report and the run moves on. The one exception is a
+cause the board's own file has measured, like Indeed's empty location, which is
+fixed and retried once. Public APIs stay sequential.
+
+### Upgrading
+
+Nothing to migrate. If your `profile/settings.json` sets `min_gap_seconds: 3`,
+it keeps 3 as the lower bound and 9 from the template as the upper; raise it to
+4 for the new default. Your `profile/`, `applications/` and `runs/` are
+git-ignored and untouched.
+
 ## v0.3.0 — 6 October 2026
 
 Settings move into one file with defaults, and a setup you stop halfway still
