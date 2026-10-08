@@ -67,6 +67,7 @@ Section = vendor name; BambooHR, Revolut and account walls → Hand off; Viterbi
 | `join.com` | JOIN |
 | `<co>.bamboohr.com/careers/<id>` | BambooHR |
 | `revolutpeople.com`, `revolut.com/careers`, **`people-jobs.com/<co>/...`** (white-label; the page is a single cross-origin `iframe#careerWebsite` whose `src` is `revolutpeople.com/<co>/public/careers/apply/<uuid>` — open that URL standalone and the form loads normally, same lesson as the Greenhouse embed) | Revolut People |
+| `kariyer.net/is-ilani/<slug>` (logged-in apply at `/basvuru-tamamlama/<id>`) | Kariyer.net (see `reference/sources/kariyer-net.md`) |
 | `*.homerun.co` | Homerun |
 | Spanish UI, `s-rall-bn` cookie button | Viterbit |
 | Taleo, SuccessFactors, iCIMS, Worldline, Scalis, haystack.cv | account walls |
