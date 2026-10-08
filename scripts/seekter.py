@@ -15,7 +15,7 @@ applications/README.md and applications/<YYYY-MM>/README.md are generated views.
   python3 scripts/seekter.py stats [--since YYYY-MM-DD]
   python3 scripts/seekter.py migrate [--keep-old]         (v1 status folders -> month folders)
 """
-import argparse, datetime as dt, json, os, re, sys, unicodedata
+import argparse, datetime as dt, json, os, re, shutil, sys, unicodedata
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 
@@ -301,6 +301,52 @@ def remove(r) -> None:
         r["_path"].unlink()
 
 
+def append_log(body: str, line: str) -> str:
+    """Add a log line, once. Running the same `move` twice (a re-run script, a retried
+    batch) used to write the identical line twice; measured 6 Oct on 27 records."""
+    if "## Log" not in body:
+        body += "\n## Log\n"
+    lines = [x for x in body.rstrip().splitlines() if x.strip()]
+    if lines and lines[-1].strip() == line.strip():
+        return body.rstrip() + "\n"
+    return body.rstrip() + "\n" + line + "\n"
+
+
+def dedupe_log(body: str) -> str:
+    """Collapse adjacent identical lines in the Log section."""
+    m = re.search(r"(## Log\n)(.*?)(?=\n## |\Z)", body, re.S)
+    if not m:
+        return body
+    out = []
+    for x in m.group(2).splitlines(keepends=True):
+        if x.strip() and out and x.strip() == out[-1].strip():
+            continue
+        out.append(x)
+    return body[:m.start(2)] + "".join(out) + body[m.end(2):]
+
+
+def add_answers(body: str, text: str) -> str:
+    """Append submitted answers to the record's Answers section.
+
+    A form often gets its free text after the record exists: the record is opened as a
+    hand-off, the user supplies the missing facts, and the form is submitted later.
+    Without this the answers could only be added by editing the file by hand, which the
+    tracker forbids (measured 6 Oct, Secfix)."""
+    text = (text or "").strip()
+    if not text:
+        return body
+    m = re.search(r"(## Answers submitted\n)(.*?)(?=\n## |\Z)", body, re.S)
+    if not m:
+        cut = body.find("## Log")
+        block = f"## Answers submitted\n\n{text}\n\n"
+        return body[:cut] + block + body[cut:] if cut >= 0 else body.rstrip() + "\n\n" + block
+    old = m.group(2).strip()
+    if text in old:
+        return body
+    new = f"\n{old}\n\n{text}\n" if old else f"\n{text}\n"
+    return body[:m.start(2)] + new + body[m.end(2):]
+
+
 def section(body: str, name: str) -> str:
     m = re.search(rf"## {re.escape(name)}\n(.*?)(?=\n## |\Z)", body, re.S)
     return m.group(1).strip() if m else ""
@@ -354,16 +400,82 @@ def fix_meta(r: dict) -> dict:
 # second role at the same company inside the window can be a silent loss that
 # also looks like spam. Measured 2 Oct: two roles at one company and a second
 # role at another went out the same afternoon. The window is the candidate's
-# (`same_company_days` in profile/search.json), 30 days by default.
+# (`same_company_days` in profile/settings.json), 30 days by default.
 HOLDING = ("pending", "applied", "rejected")   # within the window
 ALWAYS_HOLDING = ("interviewing", "offer")      # a live process holds regardless of date
 
 
+# ---------- settings ----------
+# One file holds every switch and number: profile/settings.json, over the defaults in
+# templates/settings.json. A key the user never set falls back to the template, so a
+# half-finished /seekter-init still runs. profile/search.json is the old name; it is
+# moved, not rewritten, the first time anything reads the settings.
+SETTINGS = ROOT / "profile" / "settings.json"
+LEGACY_SETTINGS = ROOT / "profile" / "search.json"
+SETTINGS_TEMPLATE = ROOT / "templates" / "settings.json"
+
+
+def _merge(defaults, mine):
+    out = dict(defaults)
+    for k, v in mine.items():
+        out[k] = _merge(out[k], v) if isinstance(v, dict) and isinstance(out.get(k), dict) else v
+    return out
+
+
+def _defaults() -> dict:
+    try:
+        return json.loads(SETTINGS_TEMPLATE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def settings(create: bool = False) -> dict:
+    """The user's settings over the template's defaults.
+
+    With create=True a missing profile/settings.json is copied from the template, which is
+    what /seekter-run does at start so the user has a file to edit."""
+    if not SETTINGS.exists() and LEGACY_SETTINGS.exists():
+        LEGACY_SETTINGS.rename(SETTINGS)
+        print("moved profile/search.json to profile/settings.json (values unchanged)", file=sys.stderr)
+    elif SETTINGS.exists() and LEGACY_SETTINGS.exists():
+        print("warning: both profile/settings.json and profile/search.json exist; only settings.json is read."
+              " Move any value you still need from search.json, then delete it.", file=sys.stderr)
+    if not SETTINGS.exists():
+        if create and SETTINGS_TEMPLATE.exists():
+            SETTINGS.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(SETTINGS_TEMPLATE, SETTINGS)
+            print("created profile/settings.json from the template; every value is a default", file=sys.stderr)
+        return _defaults()
+    mine = json.loads(SETTINGS.read_text(encoding="utf-8"))
+    if not isinstance(mine, dict):
+        raise ValueError("the top level must be an object { ... }")
+    for k in ("linkedin", "freehire"):
+        if k in mine and not isinstance(mine[k], dict):
+            raise ValueError(f'"{k}" must be an object {{ ... }}')
+    return _merge(_defaults(), mine)
+
+
 def same_company_days() -> int:
     try:
-        return int(json.loads((ROOT / "profile" / "search.json").read_text())["same_company_days"])
-    except (OSError, ValueError, KeyError, TypeError):
+        return int(settings().get("same_company_days", 30))
+    except (OSError, ValueError, TypeError) as e:
+        # Never silently: a broken file would otherwise turn a 90-day window into 30.
+        print(f"warning: profile/settings.json could not be read ({e}); using 30 days", file=sys.stderr)
         return 30
+
+
+def same_company(query: str, company: str) -> bool:
+    """`query` names the employer in `company`: the same name, or whole words of it.
+
+    A substring is not enough. Measured 5 and 6 Oct: "telli" matched Intellias and
+    Intermedia Intelligent, and "Flex" matched WorkFlex and Engiflex, so both were
+    held under the 30-day rule for companies they had never applied to. A held
+    posting is skipped, so a false match costs an application, not a line of output.
+    """
+    q, c = slug(query, 80), slug(company, 80)
+    if not (query or "").strip() or q == "x":
+        return False
+    return q == c or re.search(rf"(?:^|-){re.escape(q)}(?:-|$)", c) is not None
 
 
 def holding(records, days):
@@ -386,7 +498,7 @@ def cmd_check(a):
     for r in all_apps():
         if key and (r.get("job_key") == key or job_key(r.get("url", "")) == key):
             same.append(r)
-        elif a.company and slug(a.company) in slug(r.get("company", ""), 80):
+        elif a.company and same_company(a.company, r.get("company", "")):
             company.append(r)
     if same:
         print("DUPLICATE: this posting is already tracked")
@@ -419,7 +531,7 @@ def cmd_check_many(a):
         if r:
             print(f"DUP    {line} -> {r.get('status')} {label(r)}")
             continue
-        same = [x for x in apps if co and slug(co) in slug(x.get("company", ""), 80)]
+        same = [x for x in apps if co and same_company(co, x.get("company", ""))]
         tag = "HOLD   " if holding(same, days) else "SAMECO " if same else "NEW    "
         print(tag + line + (f" -> {len(same)} earlier: " + ", ".join(f"{x.get('status')}:{x.get('role')}" for x in same[:3]) if same else ""))
 
@@ -456,6 +568,8 @@ def cmd_move(a):
         sys.exit("not found")
     note = f"- {TODAY}: {a.status}" + (f". {a.note}" if a.note else "")
     if r["_kind"] == "row" and a.status == "skipped":
+        if a.answers:
+            print("a skip row has no answers section; answers were not stored", file=sys.stderr)
         if not a.note:
             print("already skipped: " + label(r)); return
         # Re-annotating a skip is the only way to correct a reason that turned out to be
@@ -479,7 +593,7 @@ def cmd_move(a):
         if a.status == "applied":
             meta["applied"] = TODAY
         path = save(meta, body_for(meta["role"], meta["company"], notes=f"Skipped earlier: {reason}",
-                                   log=f"- {r.get('updated')}: skipped\n{note}"))
+                                   answers=a.answers, log=f"- {r.get('updated')}: skipped\n{note}"))
     elif a.status == "skipped":
         meta = {k: v for k, v in r.items() if not k.startswith("_")}
         keep = keep_as_file(r)
@@ -487,11 +601,9 @@ def cmd_move(a):
             # Collapsing this to a table row would drop the answers, the reasoning
             # and the dates, and `--answers` is what makes "no sentence twice"
             # checkable. A skip that was once a real application stays a file.
-            body = r["_body"]
+            body = add_answers(r["_body"], a.answers)
             meta.update(status="skipped", updated=TODAY)
-            if "## Log" not in body:
-                body += "\n## Log\n"
-            write(r["_path"], meta, body.rstrip() + "\n" + note + "\n")
+            write(r["_path"], meta, append_log(body, note))
             path = r["_path"]
             print(f"kept as a file rather than a skip row: {keep}", file=sys.stderr)
         else:
@@ -505,11 +617,68 @@ def cmd_move(a):
         meta.update(status=a.status, updated=TODAY)
         if a.status == "applied" and not meta.get("applied"):
             meta["applied"] = TODAY
-        if "## Log" not in body:
-            body += "\n## Log\n"
-        write(path, meta, body.rstrip() + "\n" + note + "\n")
+        body = add_answers(body, a.answers)
+        write(path, meta, append_log(body, note))
     print(path.relative_to(ROOT))
     cmd_index(None, quiet=True)
+
+
+# Values that can't have a default: without them no form can be filled honestly.
+# Everything else still `{{...}}` in the profile is simply unknown, and the run asks.
+REQUIRED_PROFILE = {"EMAIL": "application email", "CV_DEFAULT": "default CV",
+                    "COUNTRY": "country you live and work in"}
+
+
+def _defaulted(defaults, mine, prefix=""):
+    """Settings left out of the user's file or still equal to the template's value."""
+    out = []
+    for k, v in defaults.items():
+        if k.startswith("_"):
+            continue
+        if isinstance(v, dict) and isinstance(mine.get(k), dict):
+            out += _defaulted(v, mine[k], prefix + k + ".")
+        elif k not in mine or mine[k] == v:
+            out.append(prefix + k)
+    return out
+
+
+def cmd_settings(a):
+    try:
+        cfg = settings(create=True)
+    except ValueError as e:
+        sys.exit(f"problem: profile/settings.json is not valid: {e}")
+    if not a.check:
+        def clean(d):
+            return {k: clean(v) if isinstance(v, dict) else v for k, v in d.items() if not k.startswith("_")}
+        print(json.dumps(clean(cfg), indent=1, ensure_ascii=False))
+        return
+    problems = []
+    if cfg.get("linkedin", {}).get("mode") not in ("email", "read"):
+        problems.append("linkedin.mode must be email or read")
+    days = cfg.get("same_company_days")
+    if isinstance(days, bool) or not isinstance(days, int) or days < 0:
+        problems.append("same_company_days must be a whole number of days")
+    prof = ROOT / "profile" / "profile.md"
+    text = prof.read_text(encoding="utf-8") if prof.exists() else ""
+    if not text:
+        problems.append("profile/profile.md is missing (run /seekter-init)")
+    for key, what in REQUIRED_PROFILE.items():
+        if text and "{{" + key + "}}" in text:
+            problems.append(f"profile/profile.md has no {what} yet ({{{{{key}}}}}; run /seekter-init or fill it in)")
+    docs = ROOT / "profile" / "documents"
+    if text and not any(p.suffix.lower() in (".pdf", ".docx", ".doc") for p in docs.glob("*")):
+        problems.append("profile/documents/ has no CV file (.pdf, .doc or .docx)")
+    try:
+        mine = json.loads(SETTINGS.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        mine = {}
+    left = _defaulted(_defaults(), mine)
+    if left:
+        print("using defaults for: " + ", ".join(left))
+    if problems:
+        print("\n".join("problem: " + p for p in problems))
+        sys.exit(1)
+    print("settings ok")
 
 
 def rows(since=None, status=None):
@@ -561,10 +730,12 @@ def cmd_normalize(a):
             r = read(f)
             path, body = r.pop("_path"), r.pop("_body")
             r.pop("_kind")
-            if fix_meta(r):
+            clean = dedupe_log(body)
+            fixed = bool(fix_meta(r))  # always run: it rewrites the metadata in place
+            if fixed or clean != body:
                 files += 1
                 if not a.dry_run:
-                    write(path, r, body)
+                    write(path, r, clean)
     verb = "would change" if a.dry_run else "normalised"
     print(f"{files} files and {rows_changed} skip rows {verb}")
 
@@ -669,11 +840,14 @@ def main():
     ad.add_argument("--no-index", action="store_true", help="skip regenerating the README index (bulk adds)")
     ad.set_defaults(fn=cmd_add)
     mv = sp.add_parser("move"); mv.add_argument("target"); mv.add_argument("status"); mv.add_argument("--note", default="")
+    mv.add_argument("--answers", default="", help="free-text answers as submitted, appended to the record")
     mv.set_defaults(fn=cmd_move)
     ls = sp.add_parser("list"); ls.add_argument("--status"); ls.add_argument("--since"); ls.set_defaults(fn=cmd_list)
     ix = sp.add_parser("index"); ix.set_defaults(fn=cmd_index)
-    nm = sp.add_parser("normalize", help="lowercase enums, derive ats from url, fix ats-in-source")
+    nm = sp.add_parser("normalize", help="lowercase enums, derive ats from url, fix ats-in-source, drop repeated log lines")
     nm.add_argument("--dry-run", action="store_true"); nm.set_defaults(fn=cmd_normalize)
+    se = sp.add_parser("settings", help="show the settings in effect; --check validates them and the profile's required values")
+    se.add_argument("--check", action="store_true"); se.set_defaults(fn=cmd_settings)
     st = sp.add_parser("stats"); st.add_argument("--since"); st.set_defaults(fn=cmd_stats)
     mg = sp.add_parser("migrate", help="convert applications/<status>/ folders to applications/<YYYY-MM>/")
     mg.add_argument("--keep-old", action="store_true"); mg.set_defaults(fn=cmd_migrate)

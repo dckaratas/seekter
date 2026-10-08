@@ -12,17 +12,17 @@ A template engine. **Everything personal lives in `profile/`**; this file holds 
 | File | What it holds | When to read |
 |---|---|---|
 | `profile/profile.md` | Identity, email, standard answers, salary bands, targets, location rules, blacklist, fact bank, voice | **Always, in full, first** |
-| `profile/search.json` | Queries, regions, LinkedIn mode, limits and search/alert rows, title filters, boards | Always |
+| `profile/settings.json` | Every switch and number: queries, regions, LinkedIn mode, limits and search/alert rows, title filters, boards, the same-company window. A key left out runs on the default in `templates/settings.json` | Always |
 | `profile/links.txt` | Links the user collected for this run (may not exist) | Always |
 | `reference/sources/_core.md` | Index of the source files, plus the rules that belong to no single source | **Always, before Step 1** |
 | `reference/sources/your-links.md` · `freehire.md` · `linkedin.md` | Steps 0-2: the sources that run every time. `linkedin.md` also holds the LinkedIn rule and the `read` mode limits | Always, before Step 0 |
-| `reference/sources/<board>.md` | One file per board | Only for the boards in play this run (`profile/search.json`) |
+| `reference/sources/<board>.md` | One file per board | Only for the boards in play this run (`profile/settings.json`) |
 | `reference/ats/_core.md` | Universal form rules, the URL-to-vendor table, and what makes a hand-off | Before the first form of the run |
 | `reference/ats/<vendor>.md` | One file per application system | **Before filling each form**, for that form's vendor only |
 
 Placeholders in the reference docs (`<FIRST_NAME>`, `<EMAIL>`, `<PHONE_LOCAL>`, `<CV_NAME>`, `PROFILE_QUERIES`, `PROFILE_REGIONS`, `PROFILE_HOME_COUNTRY`…) resolve from the profile.
 
-If `profile/profile.md` is missing or still contains `{{`, stop and run `/seekter-init`.
+Run `python3 scripts/seekter.py settings --check` first. It creates `profile/settings.json` from the template if there is none, moves an old `profile/search.json` across unchanged, and exits 1 with a `problem:` line for each thing that needs fixing. A missing profile, application email, default CV or country: stop and run `/seekter-init`. A bad setting (an unknown `linkedin.mode`, a negative window, invalid JSON): stop and say which line of `profile/settings.json` to fix. Anything else still `{{…}}` in the profile is unknown, exactly like `ASK`: ask when a form needs it. Say which settings it reports as defaults if this is the first run.
 
 If the profile has no `Disclaimer accepted:` line with a date (a profile written before the line existed), show the disclaimer sentence from `/seekter-init` once, word for word. No: stop the run. Yes: add the line with today's date, then continue.
 
@@ -33,7 +33,7 @@ Then:
 
 ## 1. Source order: mandatory, all four, every run
 
-**Finding postings is cheap; filling forms is the work.** So the user's own links come first, and LinkedIn is read at most, never acted on. **Easy Apply is never filled, in any mode.** Beyond that, LinkedIn depends on `linkedin.mode` in `profile/search.json`: `email` (the default) reads only the job-alert emails in the inbox and never opens LinkedIn; `read`, which only the user can switch on, also reads searches, the notification feed and job details, within the limits and stop signals in `reference/sources/linkedin.md`. LinkedIn's terms forbid extensions that scrape or automate its site and it restricts accounts that use them; `read` mode is the user accepting that risk, which is why it is limited and why a single warning switches it off.
+**Finding postings is cheap; filling forms is the work.** So the user's own links come first, and LinkedIn is read at most, never acted on. **Easy Apply is never filled, in any mode.** Beyond that, LinkedIn depends on `linkedin.mode` in `profile/settings.json`: `email` (the default) reads only the job-alert emails in the inbox and never opens LinkedIn; `read`, which only the user can switch on, also reads searches, the notification feed and job details, within the limits and stop signals in `reference/sources/linkedin.md`. LinkedIn's terms forbid extensions that scrape or automate its site and it restricts accounts that use them; `read` mode is the user accepting that risk, which is why it is limited and why a single warning switches it off.
 
 **Harvest every step before filling a single form.** The source steps are cheap; forms are not. Sweep every source, dedup and filter to a candidate list, *then* start applying in the §3 priority order. If the session ends early the report still shows a complete picture of the market, and the queue survives into the next run.
 
@@ -64,7 +64,7 @@ Rules:
 1.6 **Same company plus the same role title is a repost, not a new job.**
    `check` returns SAMECO and prints the earlier records with their status and role. **Read the role names it prints.** If one matches the posting in front of you, open that record before filling anything: the employer has almost certainly reposted under a new id after closing the first round. Measured 25 Sept: Scalable Capital's Digital Product Designer (m/f/x) was applied to on 9 Sept under SmartRecruiters id `744000148422454`, rejected on 18 Sept, and reposted as `744000151002344`; the 23 Sept run saw SAMECO, prepared the whole form anyway and handed it over. `job_key` is not at fault here and must not be "fixed" for it, because the two ids are genuinely different postings. This is a reading failure, and the fix is to read.
 
-1.7 **One application per company per window** (`same_company_days` in `profile/search.json`, 30 by default).
+1.7 **One application per company per window** (`same_company_days` in `profile/settings.json`, 30 by default).
    Greenhouse lets an employer auto-reject a candidate's further applications to a department inside a window, or after a rejection, and the candidate hears nothing unless the employer turns the email on ("blocked by auto reject rule"). A second role at the same company inside the window can be a silent loss, and to the recruiter it looks like the mass applying they are filtering out. Measured 2 Oct: two roles at one company and a second role at another went out the same afternoon.
    `check` exits **2** with `HOLD` when the company has an application, a pending hand-off or a rejection inside the window, or an interview or offer at any date. Then:
    - **Skip** it with the reason (`same company within <n> days: <earlier role>, <date>`), and list it in the report under its own heading so the user can overrule.
@@ -80,7 +80,7 @@ Rules:
    - "Lead": read the **verbs**. "direct reports / line-manage / guide the team / accountable for their performance" = management. "own work, pairing, critique, prototyping in code, without disciplinary leadership" = IC.
    - **Then read the profile before skipping on it.** Management is not a binary the skill decides: how much of it a candidate accepts is theirs to set, and the profile's exclusions section is where it lives. A candidate who rules that a lead role with one or two reports is fine makes "manage and mentor one designer" an apply, not a skip. Measured 23 Sept: a Malta Lead Product Designer was skipped on the management verbs, the candidate overruled it, and the rule went into the profile. When the management content is small and the craft is still the job, apply and flag it in the notes rather than deciding for them.
    - The form's own free-text questions reveal scope better than the posting does ("show how you've led and developed the people on your team" = management). BambooHR's "Minimum Experience" field is the employer's own level tag.
-   - **Title collisions.** Most job titles are shared with an unrelated industry, and the other industry usually posts more volume. Build the candidate's collision list into `title_drop` in `profile/search.json` on the first run and extend it as they appear. Never judge from the title — verify from the description.
+   - **Title collisions.** Most job titles are shared with an unrelated industry, and the other industry usually posts more volume. Build the candidate's collision list into `title_drop` in `profile/settings.json` on the first run and extend it as they appear. Never judge from the title — verify from the description.
    - Under-level signals: "Middle", "II", "guided by more senior peers", internships.
    - One missing core requirement is **not** a skip reason: apply, answer honestly, flag low odds. Four missing = noise. A mandatory radio with **no truthful option** = don't submit.
 4. **Language.** Any required language outside the profile's list = skip, even for fully remote roles. A description written entirely in the local language counts as a requirement. `m/w/d`, `H/F` alone don't. An explicit sentence ("English required, German a plus") overrides. freehire: `enrichment.posting_language`.

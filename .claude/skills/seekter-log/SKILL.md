@@ -15,6 +15,7 @@ All changes go through `scripts/seekter.py`; never edit front matter or `skipped
 | "X invited me to a call / screening / interview" | `move … interviewing --note "<stage, date, who>"` |
 | "Got an offer from X" | `move … offer --note "<amount, deadline>"` |
 | "I applied to X myself" | `check <url>` first, then `add --status applied --source manual --notes "applied by hand"` |
+| A hand-off is submitted after the record exists, with free-text answers | `move … applied --note "<date, how>" --answers "<the answers exactly as sent>"` (appended to the record's Answers section) |
 | "Forget X" / "Don't apply to X again" | `move … skipped --note "<reason>"` and add X to the blacklist in `profile/profile.md` §7 |
 
 Find the file first when the user only gives a company name: `python3 scripts/seekter.py list | grep -i <company>`. If several rows match, ask which role.
