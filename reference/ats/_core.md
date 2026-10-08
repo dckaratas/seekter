@@ -21,6 +21,7 @@ it. One file per vendor makes that impossible to write, because there is nowhere
 | Dayforce | `dayforce.md` |
 | Djinni | `djinni.md` |
 | Greenhouse, including Drupal-wrapped tenants | `greenhouse.md` |
+| Heroty (`app.heroty.com/jobs/<id>`) | `heroty.md` |
 | Homerun | `homerun.md` |
 | Indeed SmartApply, which Glassdoor Easy Apply hands off to | `indeed-smartapply.md` |
 | join.com | `join-com.md` |
@@ -67,6 +68,7 @@ Section = vendor name; BambooHR, Revolut and account walls → Hand off; Viterbi
 | `join.com` | JOIN |
 | `<co>.bamboohr.com/careers/<id>` | BambooHR |
 | `revolutpeople.com`, `revolut.com/careers`, **`people-jobs.com/<co>/...`** (white-label; the page is a single cross-origin `iframe#careerWebsite` whose `src` is `revolutpeople.com/<co>/public/careers/apply/<uuid>` — open that URL standalone and the form loads normally, same lesson as the Greenhouse embed) | Revolut People |
+| `app.heroty.com/jobs/<id>` | Heroty |
 | `kariyer.net/is-ilani/<slug>` (logged-in apply at `/basvuru-tamamlama/<id>`) | Kariyer.net (see `reference/sources/kariyer-net.md`) |
 | `*.homerun.co` | Homerun |
 | Spanish UI, `s-rall-bn` cookie button | Viterbit |
