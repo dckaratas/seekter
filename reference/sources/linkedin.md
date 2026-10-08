@@ -100,6 +100,7 @@ window.SEARCH=async function(key,kw,geo,remote,tpr,start){
 - **Don't filter on Easy Apply (`f_AL`).** It breaks keyword matching. Tell Easy Apply from `applyMethod` instead.
 - **geoIds:** `91000002` EEA · `92000000` Worldwide · `102105699` TR · `102890719` NL · `101282230` DE · `104738515` IE · `105646813` ES · `103350119` IT · `105072130` PL · `105015875` FR · `100364837` PT · `101165590` UK. EEA doesn't cover the UK or Switzerland. A new one can be read out of a search URL the user sends.
 - **Country geo + remote trap:** remote plus a single-country geo mostly returns global roles that accept that country, not local companies.
+- **A thin geo plus a short window returns padding, not matches.** Measured 6 Oct 2026: twelve rows on one mid-sized city and a country (`r259200`) returned 47 unique ids, nearly all the same remote/EMEA cards whatever the keyword. Widening to the country and `r604800` returned real keyword matches. Title-filter everything; on a small market use a week's window.
 - If the endpoint dies, stop and report. Finding a replacement means watching the network panel while paging through a search, which is a job for a session the user is watching, not a run.
 
 **Notification feed** (once per run): open `https://www.linkedin.com/notifications/?filter=jobs_all`, check the highlighted pill reads Jobs (`?filter=job_alerts` opens on All and gave 20 ids against 48), scroll once, then harvest without clicking anything:
