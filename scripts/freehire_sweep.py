@@ -13,6 +13,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import seekter  # noqa: E402
 
 ROOT = seekter.ROOT
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")  # Windows consoles default to a legacy code page
 CFG = json.loads((ROOT / "profile" / "search.json").read_text(encoding="utf-8"))
 FH = CFG["freehire"]
 UA = "Mozilla/5.0 seekter"
@@ -22,7 +24,7 @@ ELIG = re.compile(r"[^.\n]*(based in|authori[sz]ed to work|eligible to work|resi
 
 
 def curl(url):
-    r = subprocess.run(["curl", "-sS", "-m", "40", "-A", UA, url], capture_output=True, text=True)
+    r = subprocess.run(["curl", "-sS", "-m", "40", "-A", UA, url], capture_output=True, text=True, encoding="utf-8", errors="replace")
     try:
         return json.loads(r.stdout)
     except Exception:
@@ -44,7 +46,10 @@ def require(*keys):
 
 
 def sweep():
-    require("queries", "categories", "regions", "title_keep")
+    require("queries", "categories", "title_keep")
+    if not (FH.get("regions") or FH.get("home_country")):
+        # A home-country-only candidate sweeps by `countries` alone; one of the two must be set.
+        require("regions")
     jobs = [dict(q=q, category=c, work_mode="remote", regions=r)
             for q in FH["queries"] for c in FH["categories"] for r in FH["regions"]]
     if FH.get("home_country"):
