@@ -100,6 +100,7 @@ window.SEARCH=async function(key,kw,geo,remote,tpr,start){
 - **Don't filter on Easy Apply (`f_AL`).** It breaks keyword matching. Tell Easy Apply from `applyMethod` instead.
 - **geoIds:** `91000002` EEA · `92000000` Worldwide · `102105699` TR · `102890719` NL · `101282230` DE · `104738515` IE · `105646813` ES · `103350119` IT · `105072130` PL · `105015875` FR · `100364837` PT · `101165590` UK. EEA doesn't cover the UK or Switzerland. A new one can be read out of a search URL the user sends.
 - **Country geo + remote trap:** remote plus a single-country geo mostly returns global roles that accept that country, not local companies.
+- **A thin geo plus a short window returns padding, not matches.** Measured 6 Oct 2026: twelve rows on one mid-sized city and a country (`r259200`) returned 47 unique ids, nearly all the same remote/EMEA cards whatever the keyword. Widening to the country and `r604800` returned real keyword matches. Title-filter everything; on a small market use a week's window.
 - If the endpoint dies, stop and report. Finding a replacement means watching the network panel while paging through a search, which is a job for a session the user is watching, not a run.
 
 **Notification feed** (once per run): open `https://www.linkedin.com/notifications/?filter=jobs_all`, check the highlighted pill reads Jobs (`?filter=job_alerts` opens on All and gave 20 ids against 48), scroll once, then harvest without clicking anything:
@@ -122,6 +123,7 @@ const am=d.applyMethod||{};
 const url=(am['com.linkedin.voyager.jobs.OffsiteApply']||{}).companyApplyUrl||'';   // empty = Easy Apply
 ```
 - Keep full URLs in `sessionStorage`, not `window` (lost on navigation) and not in printed output (`?`, `=` and `&` trigger `[BLOCKED: Cookie/query string data]`; print hostnames, or replace those characters).
+- **Read `d.applyingInfo` on every detail before listing anything.** It is `{applied: true, activities: [{type: "APPLY", text: "You applied on <M/D/YYYY>"}], resumeFileName…}` when the candidate already applied through LinkedIn, by hand and before Seekter ever tracked it. Measured 8 Oct 2026: four Easy Apply postings were put on the user's list and some had been applied to days earlier. `applied: true` → record the posting as `applied` with the date from `activities` and leave it off the list. `d.jobApplicationLimitReached` sits next to it.
 - `closed=false` is not a liveness check; a posting can stop accepting applications within hours. The employer's page decides.
 - `companyDetails` sometimes returns no name; take it from the description's first sentence.
 

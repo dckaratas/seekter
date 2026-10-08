@@ -24,6 +24,7 @@ One file per source. **Read this file plus `your-links.md`, `freehire.md` and `l
 | Indeed | `indeed.md` | step 5 |
 | Dice | `dice.md` | step 5 |
 | XING | `xing.md` | step 5, relocation track only |
+| Kariyer.net (Turkey) | `kariyer-net.md` | step 5, when the profile lists it |
 | Wellfound | `wellfound.md` | step 5, discovery only |
 | Employer boards (Greenhouse, Ashby, Workday, Siemens) | `direct-employer.md` | when a company is worth checking directly |
 | Upwork, Toptal, Malt, A.Team, Proxify and the rest | `freelance-platforms.md` | profile channels, not a sweep step |

@@ -18,6 +18,8 @@ Response shape: `{ data: [...], meta: { limit, offset, total } }`.
 
 Filter keys: `category`, `countries`, `regions`, `work_mode`, `posting_language`, `domains`, `seniority`, `employment_type`, `english_level`, `salary_currency`, `salary_period`, `company_size`, `company_type`, `relocation`, `requires_clearance`, `role_type`, `skills`, `source`, `visa_sponsorship`, `is_tech`, `cities`, `collections`, `ai_interview`, `auto_apply_available`, `reality`.
 - `regions`: there is **no `worldwide`**; use `global`. Others: `eu`, `uk`, `mena`, `emea`, `europe`, `turkey`, `north_america`, `latam`, `apac`, `africa`, `cis`.
+- **`regions=turkey` returned 0** (6 Oct 2026) while `countries=TR` returned 314 for a two-word backend title. For a home-country-only candidate, leave `regions` empty and set `home_country`; the sweep then runs only the `countries` pass.
+- **Turkish postings are mostly `source: whatjobs-tr`** and their `url` is a `tr.whatjobs.com/pub_api__cpl__…` link that redirects to a JobLeads sign-up wall. The record carries no original URL. Treat each as a lead: resolve the employer's own posting (LinkedIn, the company careers page, Kariyer.net) or skip it.
 - Design work is spread across `category` = `design`, `frontend`, `engineering_design`, `product`. Query each.
 
 Per-record fields worth using:
