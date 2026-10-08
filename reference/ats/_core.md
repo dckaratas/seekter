@@ -26,8 +26,8 @@ it. One file per vendor makes that impossible to write, because there is nowhere
 | Indeed SmartApply, which Glassdoor Easy Apply hands off to | `indeed-smartapply.md` |
 | join.com | `join-com.md` |
 | Lever | `lever.md` |
-| Manatal (`careers-page.com`) | `manatal.md` |
 | LinkedIn Easy Apply (not automated, list for the user) | `linkedin-easy-apply.md` |
+| Manatal (`careers-page.com`) | `manatal.md` |
 | One-off and unbranded forms | `other-forms.md` |
 | Personio | `personio.md` |
 | Pinpoint | `pinpoint.md` |

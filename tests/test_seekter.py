@@ -609,5 +609,55 @@ class TrackerTests(unittest.TestCase):
         self.assertNotIn(r"\\|", table)
 
 
+class FreehireSweepTests(unittest.TestCase):
+    """The sweep script against a throwaway repository and a fake curl that logs
+    each request and answers with no jobs, so nothing touches the network."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="seekter-sweep-"))
+        (self.tmp / "scripts").mkdir()
+        for name in ("seekter.py", "freehire_sweep.py"):
+            shutil.copy2(SCRIPT.parent / name, self.tmp / "scripts" / name)
+        (self.tmp / "templates").mkdir()
+        shutil.copy2(REPO / "templates" / "settings.json", self.tmp / "templates" / "settings.json")
+        (self.tmp / "applications").mkdir()
+        (self.tmp / "profile").mkdir()
+        bin_dir = self.tmp / "bin"
+        bin_dir.mkdir()
+        self.log = self.tmp / "curl.log"
+        fake = bin_dir / "curl"
+        fake.write_text(f'#!/bin/sh\nfor a in "$@"; do last="$a"; done\necho "$last" >> "{self.log}"\n'
+                        'echo \'{"data": []}\'\n')
+        fake.chmod(0o755)
+        self.env = dict(os.environ, PATH=f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}")
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def sweep(self, freehire):
+        settings = {"title_keep": "designer", "freehire": dict(queries=["product designer"],
+                                                               categories=["design"], **freehire)}
+        (self.tmp / "profile" / "settings.json").write_text(json.dumps(settings))
+        p = subprocess.run([sys.executable, str(self.tmp / "scripts" / "freehire_sweep.py")],
+                           capture_output=True, text=True, env=self.env)
+        urls = self.log.read_text().splitlines() if self.log.exists() else []
+        return p.returncode, p.stderr, urls
+
+    def test_a_home_country_without_regions_sweeps_by_country_only(self):
+        # PR #39: freehire's own region for Turkey returns 0, so a home-country-only
+        # candidate sets regions to [] and must still get the countries pass.
+        rc, err, urls = self.sweep({"regions": [], "home_country": "tr"})
+        self.assertEqual(rc, 0, err)
+        self.assertTrue(urls)
+        self.assertTrue(all("countries=tr" in u for u in urls), urls)
+        self.assertFalse(any("regions=" in u for u in urls), urls)
+
+    def test_neither_regions_nor_a_home_country_stops_the_sweep(self):
+        rc, err, urls = self.sweep({"regions": [], "home_country": ""})
+        self.assertNotEqual(rc, 0)
+        self.assertIn("No freehire regions", err)
+        self.assertEqual(urls, [])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
