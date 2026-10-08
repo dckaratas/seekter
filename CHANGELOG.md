@@ -4,6 +4,62 @@ The version is the git tag; there is no version file. Each release is also on
 [the releases page](https://github.com/selfishprimate/seekter/releases) with the
 same text.
 
+## v0.4.0 — 8 October 2026
+
+The first release with a contributor's runs in it: Doğan Can Karataş measured
+the kit for a candidate who applies only in their own country, on Windows
+(#39). It brings a new board, two new form systems and a fix that was hiding
+every job on one platform.
+
+### On Windows the freehire sweep found nothing
+
+`freehire_sweep.py` decoded curl's output with the console's legacy code
+page, so every response failed to parse and the sweep reported 0 jobs, which
+reads exactly like a quiet market. The summary line then crashed on its arrow.
+Both are fixed. If you ran Seekter on Windows before this release, step 1 never
+worked for you.
+
+The same script refused a profile with `home_country` set and `regions` empty.
+That is the only correct setup when freehire's own region for your country
+returns nothing (`regions=turkey` returned 0 on 6 Oct while `countries=TR`
+returned 314), so a home-country-only candidate could not sweep at all. Now
+either one is enough, and a test holds it.
+
+### LinkedIn already knew what you applied to by hand
+
+In `read` mode the job detail carries `applyingInfo`, which says when you
+applied through LinkedIn yourself. The run never read it, so postings you had
+already sent through Easy Apply came back on your list to send. Measured 8 Oct:
+four of them. The run now records those as applied and leaves them off.
+
+A thin geo with a short window returns padding rather than keyword matches;
+on a small market, search the country over a week.
+
+### New: Kariyer.net, Heroty and Manatal
+
+- **Kariyer.net**, Turkey's largest job board: the search URL shape that
+  actually filters by keyword, and the logged-in apply flow, which pre-fills
+  answers from earlier applications. Read each one against your profile before
+  sending.
+- **Heroty** keeps closed postings readable until you press apply.
+- **Manatal** (`careers-page.com`) does nothing on submit until a terms box is
+  ticked. Accepting terms is yours, so it becomes a hand-off.
+- freehire's Turkish postings are mostly leads behind a sign-up wall, not apply
+  links; resolve the employer first.
+
+### Ashby sends nothing while the CV is still uploading
+
+The first submit after a CV upload returned "We're updating your application
+(e.g. uploading files), please try again" on all four Ashby forms filled on 7
+and 8 Oct, and sent nothing. Waiting a few seconds and submitting again gives
+the real result.
+
+### Upgrading
+
+Nothing to migrate. To use Kariyer.net, add it to `boards` in
+`profile/settings.json`. Your `profile/`, `applications/` and `runs/` are
+git-ignored and untouched.
+
 ## v0.3.1 — 7 October 2026
 
 Reading is paced like a person, and a verification page is a stop sign.
