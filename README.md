@@ -204,3 +204,5 @@ Seekter drives your logged-in browser and holds your contact details and CVs on 
 MIT. See [LICENSE](LICENSE).
 
 <img src="images/seekter-thank-you.jpg" alt="Thank you for using Seekter" width="100%">
+
+<p align="center"><em>Dedicated to the memory of <strong>Tarçın</strong>, the most loved and most loving cat of all time.</em></p>
