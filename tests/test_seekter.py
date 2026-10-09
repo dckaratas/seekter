@@ -75,6 +75,14 @@ class JobKeyTests(unittest.TestCase):
         self.assertEqual(sk.job_key(before), "breezy:ff94f3182ac2")
         self.assertEqual(sk.job_key(before), sk.job_key(after))
 
+    def test_hacker_news_posts_key_on_the_comment_id(self):
+        # Measured 9 Oct: every "Who is hiring?" post lives at /item?id=<n>, so the
+        # whole thread keyed as one posting and a skipped post blocked an application.
+        a = sk.job_key("https://news.ycombinator.com/item?id=49924889")
+        b = sk.job_key("https://news.ycombinator.com/item?id=49932275")
+        self.assertEqual(a, "hn:49924889")
+        self.assertNotEqual(a, b)
+
     def test_indeed_keeps_the_id_in_the_query(self):
         # Without this every Indeed posting collapses to "<host>/viewjob" and the
         # first one tracked makes all the others look like duplicates.

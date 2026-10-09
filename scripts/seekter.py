@@ -58,6 +58,11 @@ def job_key(url: str) -> str:
         for qk, qv in q.items():
             if qk.lower() == k and qv and re.fullmatch(r"\d{4,}", qv[0]):
                 return f"{host}:{qv[0]}"
+    # Hacker News "Who is hiring?" posts are comments, and every one lives at /item?id=<n>.
+    # Without this the whole thread is one key. Measured 9 Oct: a skipped volunteer post
+    # made the next post applied to from the same thread look like a duplicate.
+    if host == "news.ycombinator.com" and q.get("id") and q["id"][0].isdigit():
+        return f"hn:{q['id'][0]}"
     # Indeed keeps the posting id in the query string (?jk=, ?vjk= on a search page).
     # Without this, every posting on a domain collapses to "<host>/viewjob" and the
     # first one tracked makes all the others look like duplicates.
