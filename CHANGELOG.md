@@ -4,6 +4,51 @@ The version is the git tag; there is no version file. Each release is also on
 [the releases page](https://github.com/selfishprimate/seekter/releases) with the
 same text.
 
+## v0.5.0 — 9 October 2026
+
+Two sources that need no browser: the job boards of the companies you would
+most like to work for, read straight from their applicant tracking system, and
+the monthly Hacker News "Who is hiring?" thread.
+
+### New: an employer watchlist
+
+Most product companies publish their job board as open JSON through Greenhouse,
+Ashby, Lever or Workable. List the ones worth watching under `employers` in
+`profile/settings.json` (name, ats, slug) and `scripts/employer_sweep.py` reads
+every board in step 1, one a second, filters titles with your `title_keep` and
+`title_drop`, drops what the tracker already holds and prints the location line
+the employer wrote. A posting is seen the day it opens, before any aggregator
+copies it.
+
+Measured 9 Oct: 29 boards, 1,761 postings, 34 title matches, 2 applications.
+Most matches died on a location line the API had already returned, so read that
+column first. The slug is the board's own id, not the company's name: one
+obvious slug belonged to a defence contractor and another company's was its
+name plus two digits. Open the board once before adding a row.
+
+### New: Hacker News "Who is hiring?"
+
+`python3 scripts/employer_sweep.py --hn` reads the month's thread through the
+public Algolia API and keeps the posts that mention your titles. The October
+thread had 248 posts, 29 mentioned the titles, about 5 were real roles in the
+discipline and 1 became an application. Many posts are by founders and some
+apply by email, which stays yours to send.
+
+### Every Hacker News post looked like the same posting
+
+HN posts all live at `/item?id=<n>`, and the tracker ignored the query, so a
+whole thread keyed as one posting: a post skipped in the morning made the next
+application from the same thread report DUPLICATE. Posts now key as `hn:<id>`.
+This only affected anyone who logged HN links by hand before this release.
+
+### Upgrading
+
+Nothing to migrate. To use the watchlist, add `employers` rows to
+`profile/settings.json` (the template shows the shape). If you logged a Hacker
+News link before this release, its row in `skipped.md` keeps the old key
+`news.ycombinator.com/item`; change it to `hn:<id>`. Your `profile/`,
+`applications/` and `runs/` are git-ignored and untouched.
+
 ## v0.4.0 — 8 October 2026
 
 The first release with a contributor's runs in it: Doğan Can Karataş measured
