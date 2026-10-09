@@ -51,6 +51,8 @@
       }
     ]
   },
+  "_employers": "Companies to watch directly: Seekter reads their public job board API every run, so a posting is seen before any aggregator copies it. One row per company: name, ats (greenhouse, ashby, lever or workable) and slug, the board's own id (job-boards.greenhouse.io/<slug>, jobs.ashbyhq.com/<slug>, jobs.lever.co/<slug>, apply.workable.com/<slug>). Pick employers that hire remotely where the candidate lives or sponsor where they would move. Run `python3 scripts/employer_sweep.py`; a wrong slug is reported, not guessed. See reference/sources/direct-employer.md.",
+  "employers": [],
   "_boards": "Job boards for this candidate's field, with how often they are worth a visit. reference/sources/_core.md rates the general ones and reference/sources/ has one file per measured board; niche boards are per-discipline, so ask the candidate which they already read.",
   "boards": [
     {

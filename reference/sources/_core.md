@@ -26,7 +26,8 @@ One file per source. **Read this file plus `your-links.md`, `freehire.md` and `l
 | XING | `xing.md` | step 5, relocation track only |
 | Kariyer.net (Turkey) | `kariyer-net.md` | step 5, when the profile lists it |
 | Wellfound | `wellfound.md` | step 5, discovery only |
-| Employer boards (Greenhouse, Ashby, Workday, Siemens) | `direct-employer.md` | when a company is worth checking directly |
+| Employer watchlist (Greenhouse, Ashby, Lever, Workable public APIs) | `direct-employer.md` | every run, with step 1, when `employers` has rows; any company worth checking directly |
+| Hacker News "Who is hiring?" | `hacker-news.md` | with step 1; the thread is monthly, so one full read a month and a glance at new comments after |
 | Upwork, Toptal, Malt, A.Team, Proxify and the rest | `freelance-platforms.md` | profile channels, not a sweep step |
 | Himalayas, Remotive, We Work Remotely, haystack.cv, Adzuna, Arbeitnow, Otta, RemoteOK and other dead ends | `dead-and-low-value.md` | read before adding a "new" board |
 | Inbound recruiter mail, inbox sweep, rejection regex | `inbox.md` | `/seekter-log`, not the run |

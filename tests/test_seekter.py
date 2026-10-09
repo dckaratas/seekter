@@ -75,6 +75,14 @@ class JobKeyTests(unittest.TestCase):
         self.assertEqual(sk.job_key(before), "breezy:ff94f3182ac2")
         self.assertEqual(sk.job_key(before), sk.job_key(after))
 
+    def test_hacker_news_posts_key_on_the_comment_id(self):
+        # Measured 9 Oct: every "Who is hiring?" post lives at /item?id=<n>, so the
+        # whole thread keyed as one posting and a skipped post blocked an application.
+        a = sk.job_key("https://news.ycombinator.com/item?id=49924889")
+        b = sk.job_key("https://news.ycombinator.com/item?id=49932275")
+        self.assertEqual(a, "hn:49924889")
+        self.assertNotEqual(a, b)
+
     def test_indeed_keeps_the_id_in_the_query(self):
         # Without this every Indeed posting collapses to "<host>/viewjob" and the
         # first one tracked makes all the others look like duplicates.
@@ -658,6 +666,71 @@ class FreehireSweepTests(unittest.TestCase):
         self.assertIn("No freehire regions", err)
         self.assertEqual(urls, [])
 
+
+
+class EmployerSweepTests(unittest.TestCase):
+    """The watchlist sweep against a throwaway repository and a fake curl that
+    answers one Greenhouse board and nothing else."""
+
+    BOARD = {"jobs": [
+        {"id": 1, "title": "Senior Product Designer", "location": {"name": "Remote, Europe"}},
+        {"id": 2, "title": "Interior Designer", "location": {"name": "Berlin"}},
+        {"id": 3, "title": "Backend Engineer", "location": {"name": "Remote"}},
+        {"id": 4, "title": "Product Designer, Growth", "location": {"name": "Remote"}},
+    ]}
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="seekter-employers-"))
+        (self.tmp / "scripts").mkdir()
+        for name in ("seekter.py", "employer_sweep.py"):
+            shutil.copy2(SCRIPT.parent / name, self.tmp / "scripts" / name)
+        (self.tmp / "templates").mkdir()
+        shutil.copy2(REPO / "templates" / "settings.json", self.tmp / "templates" / "settings.json")
+        (self.tmp / "applications").mkdir()
+        (self.tmp / "profile").mkdir()
+        bin_dir = self.tmp / "bin"
+        bin_dir.mkdir()
+        board = self.tmp / "board.json"
+        board.write_text(json.dumps(self.BOARD))
+        fake = bin_dir / "curl"
+        fake.write_text('#!/bin/sh\nfor a in "$@"; do last="$a"; done\n'
+                        f'case "$last" in *boards-api.greenhouse.io/v1/boards/acme/*) cat "{board}";; '
+                        '*) echo "{}";; esac\n')
+        fake.chmod(0o755)
+        self.env = dict(os.environ, PATH=f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}")
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def sweep(self, employers):
+        settings = {"title_keep": "designer", "title_drop": "interior", "employers": employers}
+        (self.tmp / "profile" / "settings.json").write_text(json.dumps(settings))
+        return subprocess.run([sys.executable, str(self.tmp / "scripts" / "employer_sweep.py")],
+                              capture_output=True, text=True, env=self.env)
+
+    def test_titles_are_filtered_and_tracked_postings_dropped(self):
+        subprocess.run([sys.executable, str(self.tmp / "scripts" / "seekter.py"), "add", "--company", "Acme",
+                        "--role", "Product Designer, Growth", "--status", "applied",
+                        "--url", "https://job-boards.greenhouse.io/acme/jobs/4"],
+                       capture_output=True, text=True, check=True)
+        p = self.sweep([{"name": "Acme", "ats": "greenhouse", "slug": "acme"}])
+        self.assertEqual(p.returncode, 0, p.stderr)
+        self.assertIn("1 boards, 4 postings → 1 candidates", p.stdout)
+        self.assertIn("Senior Product Designer", p.stdout)
+        self.assertNotIn("Interior", p.stdout)
+        self.assertNotIn("Growth", p.stdout)
+
+    def test_a_wrong_slug_is_reported_not_guessed(self):
+        p = self.sweep([{"name": "Nobody", "ats": "ashby", "slug": "nobody"},
+                        {"name": "Odd", "ats": "taleo", "slug": "odd"}])
+        self.assertEqual(p.returncode, 0, p.stderr)
+        self.assertIn("problem: Nobody: no board at ashby:nobody", p.stdout)
+        self.assertIn("problem: Odd: no board at taleo:odd", p.stdout)
+
+    def test_an_empty_watchlist_stops_the_sweep(self):
+        p = self.sweep([])
+        self.assertNotEqual(p.returncode, 0)
+        self.assertIn("No employers", p.stderr)
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
