@@ -40,7 +40,7 @@ Then:
 | # | Step | Method in `reference/sources/` |
 |---|---|---|
 | 0 | **Your links**: pasted in chat or in `profile/links.txt` | `your-links.md` |
-| 1 | **freehire API sweep** (+ Jobicy) | `python3 scripts/freehire_sweep.py`, then `--detail <n>` per candidate |
+| 1 | **API sweeps**: freehire (+ Jobicy), the employer watchlist, and the monthly HN "Who is hiring?" thread | `python3 scripts/freehire_sweep.py`, then `--detail <n>` per candidate (`freehire.md`); `python3 scripts/employer_sweep.py` when `employers` has rows, and `--hn` (`direct-employer.md`, `hacker-news.md`) |
 | 2 | **LinkedIn**: alert emails always; in `read` mode also the notification feed and the `linkedin.searches` rows, within `read_limits` | `linkedin.md` (emails via `inbox.md`) |
 | 3 | **Other boards** at the cadence in the profile | One file per board in `reference/sources/` |
 
