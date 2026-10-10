@@ -29,6 +29,7 @@ it. One file per vendor makes that impossible to write, because there is nowhere
 | LinkedIn Easy Apply (not automated, list for the user) | `linkedin-easy-apply.md` |
 | Manatal (`careers-page.com`) | `manatal.md` |
 | One-off and unbranded forms | `other-forms.md` |
+| Peoplise (`live.peoplise.com/<co>/Application/...`) | `peoplise.md` |
 | Personio | `personio.md` |
 | Pinpoint | `pinpoint.md` |
 | ReachMee | `reachmee.md` |
@@ -72,6 +73,7 @@ Section = vendor name; BambooHR, Revolut and account walls → Hand off; Viterbi
 | `app.heroty.com/jobs/<id>` | Heroty |
 | `kariyer.net/is-ilani/<slug>` (logged-in apply at `/basvuru-tamamlama/<id>`) | Kariyer.net (see `reference/sources/kariyer-net.md`) |
 | `www.careers-page.com/<co>/job/<id>` | Manatal |
+| `live.peoplise.com/<co>/Application/Landing/<uuid>` | Peoplise |
 | `*.homerun.co` | Homerun |
 | Spanish UI, `s-rall-bn` cookie button | Viterbit |
 | Taleo, SuccessFactors, iCIMS, Worldline, Scalis, haystack.cv | account walls |
