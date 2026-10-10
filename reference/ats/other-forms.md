@@ -7,6 +7,7 @@
 - **Viterbit:** setter works. City dropdown: click dropdown → click its search box separately (first typing swallowed) → type only the part of the name with no non-ASCII letters → click option. Reject cookies: `s-rall-bn`.
 - **select2-style widgets (e.g. In4Matic):** `option.selected=true`+`change` leaves the placeholder visible = not selected → real clicks.
 - **BambooHR (content):** read "Minimum Experience" (e.g. Manager/Supervisor) at the end of `get_page_text` — the employer's own seniority tag.
+- **BambooHR (form), measured 9 Oct 2026:** "Apply for This Job" opens the form on the same page. Tenants can make Address, City, Province and Postal Code all required, so a profile without a street and postcode cannot finish it. The file input is hidden: give it an id, make it visible, then `file_upload`. Country is a custom select that may already show the right country. A honeypot text field ("Please leave this field blank", far off-screen) sits first in the DOM; never fill it. The visible reCAPTCHA makes every BambooHR form a hand-off anyway.
 
 ## JobDiva (staffing-agency portals, `*.jobdiva.com/portal`)
 
