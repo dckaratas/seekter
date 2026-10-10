@@ -22,6 +22,10 @@
 
 - "Apply now" opens a modal that requires a LinkedIn URL before it reveals the employer's link, and submitting it makes the profile visible to the fund's portfolio companies. That is a talent-network opt-in the candidate has not given: hand off, or find the employer's own ATS. Measured 2 Oct.
 
+## Mantu careers (`careers.mantu.com/brands/<brand>/jobs/<id>`, Amaris Consulting and the other Mantu brands)
+
+- One-page form under the posting: first name, surname, email, phone (intl-tel-input, detects the country from a `+` number; the "between 0 and 15 digits" line under it is help text, not an error), a required résumé upload (`input[name=resume]`, `file_upload` works) and a required box "I agree to Mantu's Terms and Conditions and the Privacy Policy". That box is a terms acceptance: fill everything else and hand off. Invisible reCAPTCHA v3 badge only. The posting header carries the job's working language ("Permanent Job · Turkish"), which settles a language question the English description leaves open. Cookie banner: "Deny". Measured 10 Oct 2026.
+
 ## Microsoft (`apply.careers.microsoft.com`)
 
 - "Apply now" goes to a sign-in page (Microsoft, LinkedIn, Google or Facebook account) before any form. Account wall: hand off. Measured 2 Oct.

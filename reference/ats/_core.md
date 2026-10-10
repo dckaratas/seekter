@@ -74,6 +74,7 @@ Section = vendor name; BambooHR, Revolut and account walls → Hand off; Viterbi
 | `kariyer.net/is-ilani/<slug>` (logged-in apply at `/basvuru-tamamlama/<id>`) | Kariyer.net (see `reference/sources/kariyer-net.md`) |
 | `www.careers-page.com/<co>/job/<id>` | Manatal |
 | `live.peoplise.com/<co>/Application/Landing/<uuid>` | Peoplise |
+| `careers.mantu.com/brands/<brand>/jobs/<id>` (Amaris and the other Mantu brands) | Mantu careers (`other-forms.md`) |
 | `*.homerun.co` | Homerun |
 | Spanish UI, `s-rall-bn` cookie button | Viterbit |
 | Taleo, SuccessFactors, iCIMS, Worldline, Scalis, haystack.cv | account walls |
