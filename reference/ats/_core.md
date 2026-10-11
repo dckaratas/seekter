@@ -19,7 +19,9 @@ it. One file per vendor makes that impossible to write, because there is nowhere
 | Ashby | `ashby.md` |
 | Breezy | `breezy.md` |
 | Dayforce | `dayforce.md` |
+| Bizneo (`opportunities.<co>.<tld>/jobs/<slug>`) | `bizneo.md` |
 | Djinni | `djinni.md` |
+| Factorial (`<co>.factorial.com/job_posting/...`) | `factorial.md` |
 | Greenhouse, including Drupal-wrapped tenants | `greenhouse.md` |
 | Heroty (`app.heroty.com/jobs/<id>`) | `heroty.md` |
 | Homerun | `homerun.md` |
@@ -73,6 +75,8 @@ Section = vendor name; BambooHR, Revolut and account walls → Hand off; Viterbi
 | `app.heroty.com/jobs/<id>` | Heroty |
 | `kariyer.net/is-ilani/<slug>` (logged-in apply at `/basvuru-tamamlama/<id>`) | Kariyer.net (see `reference/sources/kariyer-net.md`) |
 | `www.careers-page.com/<co>/job/<id>` | Manatal |
+| `<co>.factorial.com/job_posting/<slug>`, `<co>.factorialhr.com/job_posting/<slug>` | Factorial |
+| `opportunities.<co>.<tld>/jobs/<slug>` with a "Bizneo" tab title | Bizneo |
 | `live.peoplise.com/<co>/Application/Landing/<uuid>` | Peoplise |
 | `careers.mantu.com/brands/<brand>/jobs/<id>` (Amaris and the other Mantu brands) | Mantu careers (`other-forms.md`) |
 | `*.homerun.co` | Homerun |
