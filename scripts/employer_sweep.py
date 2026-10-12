@@ -27,7 +27,7 @@ GAP = 1.0  # public APIs, but still one request after another (reference/sources
 
 
 def curl(url):
-    r = subprocess.run(["curl", "-sS", "-m", "30", "-A", UA, url],
+    r = subprocess.run([*seekter.curl_cmd(), "-sS", "-m", "30", "-A", UA, url],
                        capture_output=True, text=True, encoding="utf-8", errors="replace")
     try:
         return json.loads(r.stdout)

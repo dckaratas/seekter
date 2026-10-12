@@ -490,6 +490,16 @@ def holding(records, days):
             or (r.get("status") in HOLDING and (r.get("applied") or r.get("updated") or "") >= since)]
 
 
+def curl_cmd() -> list:
+    """The curl the sweeps run. SEEKTER_CURL points them at another one, which is how the
+    tests answer without the network. A .py file runs on this interpreter: Windows starts
+    neither a shebang script nor a fake on PATH, because System32's curl.exe comes first."""
+    c = os.environ.get("SEEKTER_CURL")
+    if not c:
+        return ["curl"]
+    return [sys.executable, c] if c.endswith(".py") else [c]
+
+
 def bare_id_to_url(url: str) -> str:
     """A bare number is a LinkedIn job id, in `check` as in `check-many`."""
     url = url.strip()
