@@ -27,7 +27,7 @@ ELIG = re.compile(r"[^.\n]*(based in|authori[sz]ed to work|eligible to work|resi
 
 
 def curl(url):
-    r = subprocess.run(["curl", "-sS", "-m", "40", "-A", UA, url], capture_output=True, text=True, encoding="utf-8", errors="replace")
+    r = subprocess.run([*seekter.curl_cmd(), "-sS", "-m", "40", "-A", UA, url], capture_output=True, text=True, encoding="utf-8", errors="replace")
     try:
         return json.loads(r.stdout)
     except Exception:

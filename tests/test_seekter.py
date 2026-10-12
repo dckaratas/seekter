@@ -618,8 +618,9 @@ class TrackerTests(unittest.TestCase):
 
 
 class FreehireSweepTests(unittest.TestCase):
-    """The sweep script against a throwaway repository and a fake curl that logs
-    each request and answers with no jobs, so nothing touches the network."""
+    """The sweep script against a throwaway repository and a fake curl (SEEKTER_CURL) that
+    logs each request and answers with no jobs, so nothing touches the network. A fake on
+    PATH never ran on Windows: System32's curl.exe is found first, and the tests went online."""
 
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp(prefix="seekter-sweep-"))
@@ -630,14 +631,12 @@ class FreehireSweepTests(unittest.TestCase):
         shutil.copy2(REPO / "templates" / "settings.json", self.tmp / "templates" / "settings.json")
         (self.tmp / "applications").mkdir()
         (self.tmp / "profile").mkdir()
-        bin_dir = self.tmp / "bin"
-        bin_dir.mkdir()
         self.log = self.tmp / "curl.log"
-        fake = bin_dir / "curl"
-        fake.write_text(f'#!/bin/sh\nfor a in "$@"; do last="$a"; done\necho "$last" >> "{self.log}"\n'
-                        'echo \'{"data": []}\'\n')
-        fake.chmod(0o755)
-        self.env = dict(os.environ, PATH=f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}")
+        fake = self.tmp / "fake_curl.py"
+        fake.write_text("import sys\n"
+                        f"open({str(self.log)!r}, 'a').write(sys.argv[-1] + '\\n')\n"
+                        "print('{\"data\": []}')\n")
+        self.env = dict(os.environ, SEEKTER_CURL=str(fake))
 
     def tearDown(self):
         shutil.rmtree(self.tmp, ignore_errors=True)
@@ -669,8 +668,8 @@ class FreehireSweepTests(unittest.TestCase):
 
 
 class EmployerSweepTests(unittest.TestCase):
-    """The watchlist sweep against a throwaway repository and a fake curl that
-    answers one Greenhouse board and nothing else."""
+    """The watchlist sweep against a throwaway repository and a fake curl (SEEKTER_CURL)
+    that answers one Greenhouse board and nothing else."""
 
     BOARD = {"jobs": [
         {"id": 1, "title": "Senior Product Designer", "location": {"name": "Remote, Europe"}},
@@ -688,16 +687,15 @@ class EmployerSweepTests(unittest.TestCase):
         shutil.copy2(REPO / "templates" / "settings.json", self.tmp / "templates" / "settings.json")
         (self.tmp / "applications").mkdir()
         (self.tmp / "profile").mkdir()
-        bin_dir = self.tmp / "bin"
-        bin_dir.mkdir()
         board = self.tmp / "board.json"
         board.write_text(json.dumps(self.BOARD))
-        fake = bin_dir / "curl"
-        fake.write_text('#!/bin/sh\nfor a in "$@"; do last="$a"; done\n'
-                        f'case "$last" in *boards-api.greenhouse.io/v1/boards/acme/*) cat "{board}";; '
-                        '*) echo "{}";; esac\n')
-        fake.chmod(0o755)
-        self.env = dict(os.environ, PATH=f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}")
+        fake = self.tmp / "fake_curl.py"
+        fake.write_text("import sys\n"
+                        "if 'boards-api.greenhouse.io/v1/boards/acme/' in sys.argv[-1]:\n"
+                        f"    print(open({str(board)!r}).read())\n"
+                        "else:\n"
+                        "    print('{}')\n")
+        self.env = dict(os.environ, SEEKTER_CURL=str(fake))
 
     def tearDown(self):
         shutil.rmtree(self.tmp, ignore_errors=True)
@@ -705,8 +703,10 @@ class EmployerSweepTests(unittest.TestCase):
     def sweep(self, employers):
         settings = {"title_keep": "designer", "title_drop": "interior", "employers": employers}
         (self.tmp / "profile" / "settings.json").write_text(json.dumps(settings))
+        # The script writes UTF-8 (its summary line has an arrow); without encoding= Windows
+        # decodes with the local code page and the arrow never matches.
         return subprocess.run([sys.executable, str(self.tmp / "scripts" / "employer_sweep.py")],
-                              capture_output=True, text=True, env=self.env)
+                              capture_output=True, text=True, encoding="utf-8", env=self.env)
 
     def test_titles_are_filtered_and_tracked_postings_dropped(self):
         subprocess.run([sys.executable, str(self.tmp / "scripts" / "seekter.py"), "add", "--company", "Acme",
