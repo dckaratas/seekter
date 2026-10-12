@@ -4,6 +4,83 @@ The version is the git tag; there is no version file. Each release is also on
 [the releases page](https://github.com/selfishprimate/seekter/releases) with the
 same text.
 
+## v0.7.0 — 12 October 2026
+
+Two new application systems, an open call to the platforms Seekter works
+around, and a run of defects found by applying: Workday applications that went
+out with an empty experience section, and a test suite that went online on
+Windows. Doğan Can Karataş contributed the Windows fix and two form notes
+(#49, #50).
+
+### New: Factorial and Bizneo
+
+Both measured 11 Oct 2026, both submitted without an account.
+
+- **Factorial** (`<co>.factorial.com/job_posting/...`): plain named inputs that
+  take the native setter, a real phone-prefix select, and the contract, salary
+  band and work model in the posting header. The privacy acknowledgement is a
+  styled checkbox that a ref click does not tick; a coordinate click does. The
+  talent-pool box under it is an opt-in and stays empty.
+- **Bizneo** (`opportunities.<co>.<tld>/jobs/...`): City is a remote search
+  that stays empty however the country is set, until three letters are typed
+  into the dropdown's own search box. Its "autocomplete from CV" button
+  overwrites every field already entered, so the CV goes through the plain
+  attach input instead.
+
+### Workday applications went out with an empty My Experience step
+
+Work Experience, Education and Skills are optional on Workday, and the CV
+carries the same facts, so Seekter left them empty on every Workday
+application. In Workday those blocks are what the recruiter reads; the
+attachment comes second. They are now filled from the profile's work history
+only: title, company and dates for every role, a description only where the
+profile has facts. The notes cover the fast way to fill ten blocks (measured
+11 Oct, no failures), Skills search that does filter on some tenants, and a
+Field of Study list reachable only by setting its scroll position.
+
+### On Windows the sweep tests ran against the real network
+
+The freehire and employer-watchlist tests faked `curl` with a shell script on
+`PATH`. Windows runs neither, so both tests called the live APIs and 2 of the
+suite's tests failed on a clean `main` (measured 12 Oct, Windows 11, Python
+3.13). The sweeps now call `curl` through `SEEKTER_CURL` when it is set, and
+the tests use a Python fake that works on every platform. Nothing changes when
+the variable is unset.
+
+### Smaller traps, each measured on a real application
+
+- **Indeed:** the scraping line still pointed at `h2 a span`, the selector
+  that returns empty titles, while the note below it said not to use it. A
+  title filter over empty strings reports zero matches on a full page, which
+  looks exactly like an empty market.
+- **Lever:** the CV parser fills "Current company" with the last employer on
+  the CV even when that job has ended, so a candidate between jobs looks
+  employed there. Clear it. The optional marketing box stays unticked, as
+  `/seekter-run` already says.
+- **Kariyer.net:** the salary field can hold the account's saved figure, and
+  typing appends to it. On 11 Oct a value grew by three orders of magnitude and
+  still looked valid. Read it first, then select, delete and type.
+- **Ashby:** `insertText` followed by `form_input` usually clears "Missing
+  entry", but on 12 Oct two fields survived two submits that way. Real typing
+  fixed both at once.
+- **Outlook:** moving a mail into a folder works only through the row's
+  context menu; the ribbon button and drag-and-drop did nothing.
+
+### An open call to job platforms and ATSs
+
+`OPEN-CALL.md` says what we ask of the other side: make looking for work free,
+recognise an agent that acts for one consenting person, make postings and
+forms readable as data, and report where an application stands. In return, six
+promises a candidate's agent keeps, all of which Seekter already does. It ends
+with a first draft of `/.well-known/candidate-agents.json` and asks for replies
+in Discussions.
+
+### Upgrading
+
+Nothing to migrate. Your `profile/`, `applications/` and `runs/` are
+git-ignored and untouched. If you run the tests with your own fake `curl`,
+point `SEEKTER_CURL` at it instead of putting it on `PATH`.
+
 ## v0.6.0 — 10 October 2026
 
 Doğan Can Karataş's second set of runs in Turkey (#45): a new application
