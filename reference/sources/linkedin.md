@@ -64,10 +64,12 @@ Detection comes from volume and rhythm, so the limits are the point of this mode
 
 | Limit | Default | Meaning |
 |---|---|---|
-| `searches_per_run` | 15 | Search requests per run, pages included. Rows beyond it rotate: start the next run where this one stopped, and keep the index in `runs/linkedin-state.json` |
+| `searches_per_run` | 15 | Search requests per run, pages included. Rows marked `"every_run": true` run first, every time; the remaining searches go to the other rows in rotation, starting where the last run stopped, with the index kept in `runs/linkedin-state.json` |
 | `details_per_run` | 60 | Job detail requests per run, job pages opened in the browser included. Fetch details only for title matches |
 | `min_gap_seconds` · `max_gap_seconds` | 4 · 9 | Pause between any two LinkedIn requests, drawn at random from this range each time. A fixed gap is a rhythm no person keeps, and rhythm is half of what detection reads. Requests run one after another, never in parallel |
 | notification feed | once per run | One page load, one harvest |
+
+**Give the rows that produce applications `every_run`.** Measured 13 Oct 2026: one run on the US, Canada and New Zealand rows read 51 remote postings in detail and nearly every one was scoped to that country only ("remote in the U.S.", a Canadian province picker), while the Worldwide and EEA remote rows had produced the applications of the days before. With a limit of about ten searches a run, pure rotation spends most days on rows that yield nothing and reaches the productive ones every three or four days. Mark the few rows that matter `every_run` and let the rest rotate through what is left; the rotation gets slower, so say how many days a full cycle takes. Rows that only ever return postings scoped to one country the candidate cannot work from can be marked `"alert_only": true`: they are skipped in read mode and live on as email alerts, which cost nothing against the limits. Measured the same day: with eight `every_run` rows, ten searches a run and 27 rows in rotation, a full cycle took about 14 days; moving 11 single-country rows to alerts and raising the limit to 15 brought it to two or three.
 
 **Stop signals.** Any of these ends LinkedIn reading for the run at once, before another request:
 - an HTTP 429 or 999, or a 403 on an endpoint that worked earlier in the run;

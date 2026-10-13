@@ -34,7 +34,7 @@
       "min_gap_seconds": 4,
       "max_gap_seconds": 9
     },
-    "_searches": "One row per title family x location. Each row is a job alert the candidate creates on LinkedIn (Email delivery) and, in read mode, a search Seekter runs. Keywords unquoted (quotes cut recall). location is for the alert; geo_id is for read-mode searches, from the table in reference/sources/linkedin.md (92000000 = Worldwide, 91000002 = EEA). remote = LinkedIn's Remote filter, which hides hybrid and on-site roles, so add a second row without it where the candidate can work on-site. EEA leaves out the UK and Switzerland.",
+    "_searches": "One row per title family x location. Each row is a job alert the candidate creates on LinkedIn (Email delivery) and, in read mode, a search Seekter runs. Keywords unquoted (quotes cut recall). location is for the alert; geo_id is for read-mode searches, from the table in reference/sources/linkedin.md (92000000 = Worldwide, 91000002 = EEA). remote = LinkedIn's Remote filter, which hides hybrid and on-site roles, so add a second row without it where the candidate can work on-site. EEA leaves out the UK and Switzerland. Add \"every_run\": true to the rows that should run on every read-mode run; the others rotate through the searches left over. \"alert_only\": true keeps a row as an email alert and skips it in read mode.",
     "window": "r259200",
     "searches": [
       {
