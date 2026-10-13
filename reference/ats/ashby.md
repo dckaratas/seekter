@@ -59,6 +59,7 @@
   [...document.querySelectorAll('input[type=radio]')].filter(r=>{var l=document.querySelector('label[for="'+r.id+'"]');return l&&/decline|prefer not/i.test(l.innerText)}).map(r=>r.id)
   ```
 - **File upload:** `find` → `file_upload` (presigned S3). Page-side CV fetch is CSP-blocked.
+- **Upload the CV before typing the phone or clicking Yes/No.** Measured 13 Oct (Front): the phone was typed for real and two Yes/No buttons were ref-clicked, then the CV went up; afterwards the phone read empty and both groups read `aria-pressed="false"`. Text fields set with `insertText` and `form_input` survived. Retyping the phone and coordinate clicks on the buttons in a fresh screenshot fixed all three. Order that avoids it: CV, then phone, then buttons.
 - **Traps:**
   - Limit: max 3 applications per company per 60 days; same role not within 180 days ("You have reached your application limit for this job").
   - Hidden honeypot instructions (see Universal). Duplicated question blocks whose error never clears → hand over.
