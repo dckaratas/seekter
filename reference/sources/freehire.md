@@ -58,3 +58,5 @@ for q in PROFILE_QUERIES:
 ```
 
 UI fallback (browser): `https://freehire.me/jobs?q=<search>&regions=europe,global&posted=1w`. `categories=design` is ignored in the UI; use `q`. Cards: `[...document.querySelectorAll('a')].filter(a=>/^\/jobs\//.test(a.getAttribute('href')||''))`. Real apply link on a detail page: `[...document.querySelectorAll('a')].filter(e=>/^apply$/i.test(e.innerText.trim())).map(e=>e.getAttribute('href'))`.
+
+- **Himalayas links are a dead end twice over.** Measured 19 Oct 2026 on three candidates (`himalayas.app/companies/<co>/jobs/<slug>`): each page carried a "<Country> only" badge that the freehire record did not show (one description even promised remote work across several countries), and every Apply button led to `himalayas.app/signup/talent`, an account wall. Read the badge before anything else; with a single-country badge the posting is closed without opening a form.
