@@ -44,6 +44,13 @@
 ## Oracle Cloud HCM candidate sites (`*.fa.*.oraclecloud.com/hcmUI/CandidateExperience/…/apply/email`)
 
 - The first screen asks for an email and says the candidate profile "will be created and kept up to date automatically". That is account creation: hand off. Measured 2 Oct (Marriott).
+- After the candidate signs in (email plus the terms box, sometimes a one-time code), the whole application is one long page and Seekter can fill it. Measured 19 Oct:
+  - **Upload the CV first.** Text fields take the native setter plus `input`/`change`/`blur`. Radio-style questions and the title are pill buttons; the chosen one gets `cx-select-pill-section--selected`.
+  - **Comboboxes** (month, year, country, major, institution, skill) list their options as `.cx-select__list-item` inside the element named by the input's `aria-controls`. `mousedown` plus `click` on the item selects it. Searches that load from the server (institution, skill) can lag a few seconds behind the typed text, so a "no results" read right after typing is not final. When a scripted pick does nothing, a coordinate click on the visible option works.
+  - **Institution list:** smaller universities outside the US and EU are often missing; "Other/Not Listed" is an option.
+  - **Skill list:** a fixed taxonomy. Common design terms like "Design Systems" may return nothing, while "Figma (Software)", "Prototyping" and "User Experience (UX)" exist.
+  - Each Education, Experience and Skill entry has its own Add button, which saves the entry into a list.
+  - The page ends with optional job-alert and marketing boxes (leave unticked; **re-read both just before handing over**, because the marketing box was found ticked after a run of scripted skill adds, cause not pinned down) and an **E-Signature full-name field**, which is the candidate's to sign before SUBMIT.
 
 ## Google Forms (`forms.gle/…`, `docs.google.com/forms/…`)
 
