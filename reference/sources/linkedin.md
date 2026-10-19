@@ -82,6 +82,8 @@ Then set `linkedin.mode` back to `email` in `profile/settings.json`, say so at t
 
 Requests run in the page context of an open `linkedin.com` tab. `window.CSRF = document.cookie.match(/JSESSIONID="?([^";]+)"?/)[1]`. Every fetch is followed by `await new Promise(r=>setTimeout(r, (min+Math.random()*(max-min))*1000))`, with `min` and `max` from `read_limits`. At the default range, run at most four requests per JS call so the slowest draw still fits inside the 45 s budget.
 
+**A loop left running in a background tab crawls.** Chrome throttles timers in hidden tabs, so a `setTimeout` gap in the LinkedIn tab stretches to about a minute once another tab is in front. Measured 14 Oct 2026: a 60-detail loop started in the background did 15 details in roughly ten minutes. Driving it from outside fixed it: one detail per JS call, with the 4-9 s gap done as a `computer wait` step between calls in a `browser_batch`, finished the remaining 45 in about six minutes. Keep the gap random by varying the wait values.
+
 **Searches** (Voyager REST, relevance order):
 ```js
 window.R=window.R||{};
@@ -124,6 +126,7 @@ const j=await r.json();const d=j.data||j;   // the body is j, not j.data
 const am=d.applyMethod||{};
 const url=(am['com.linkedin.voyager.jobs.OffsiteApply']||{}).companyApplyUrl||'';   // empty = Easy Apply
 ```
+- **`sessionStorage` belongs to the LinkedIn origin in that tab, so read the inbox in a different tab.** Measured 19 Oct 2026: the 60 detail records were stored in `sessionStorage`, the same tab was then navigated to the webmail for the alert emails, and the records were out of reach until the tab went back to linkedin.com, which costs a page load against a run that has already spent its budget. Store the full apply URL in the record too: stripping the query string to keep output printable also stripped the only working link for a Broadbean (aplitrak) posting, and it could not be rebuilt without another detail request.
 - Keep full URLs in `sessionStorage`, not `window` (lost on navigation) and not in printed output (`?`, `=` and `&` trigger `[BLOCKED: Cookie/query string data]`; print hostnames, or replace those characters).
 - **Read `d.applyingInfo` on every detail before listing anything.** It is `{applied: true, activities: [{type: "APPLY", text: "You applied on <M/D/YYYY>"}], resumeFileName…}` when the candidate already applied through LinkedIn, by hand and before Seekter ever tracked it. Measured 8 Oct 2026: four Easy Apply postings were put on the user's list and some had been applied to days earlier. `applied: true` → record the posting as `applied` with the date from `activities` and leave it off the list. `d.jobApplicationLimitReached` sits next to it.
 - `closed=false` is not a liveness check; a posting can stop accepting applications within hours. The employer's page decides.
