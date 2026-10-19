@@ -4,6 +4,69 @@ The version is the git tag; there is no version file. Each release is also on
 [the releases page](https://github.com/selfishprimate/seekter/releases) with the
 same text.
 
+## v0.8.0 — 19 October 2026
+
+LinkedIn rows that can be told to run every time, a form system that used to
+end at a hand-off and is now filled, and five traps found by applying.
+
+### LinkedIn read mode spent most days on rows that yield nothing
+
+With about ten searches a run and a long list of rows, pure rotation reached
+the rows that produce applications only every few days. Measured 13 Oct: one
+run on the US, Canada and New Zealand rows read 51 remote postings in detail,
+and nearly every one was scoped to that country alone, while the Worldwide and
+EEA rows had produced the applications of the days before. A row can now
+carry `"every_run": true`, which runs it first every time, or
+`"alert_only": true`, which keeps it as an email alert and skips it in read
+mode. With eight `every_run` rows and 11 single-country rows moved to alerts,
+a full cycle went from about 14 days to two or three. `templates/settings.json`
+documents both keys.
+
+### New: Oracle Cloud HCM, filled after the candidate signs in
+
+Oracle's candidate sites (`*.fa.*.oraclecloud.com/hcmUI/CandidateExperience/...`)
+open on an email screen that creates a profile, so until now they ended as a
+hand-off. Once the candidate signs in themselves, the rest is one long page
+that Seekter fills: pill-button radios, comboboxes whose options sit under the
+input's `aria-controls`, server-side lists that lag the typed text, an
+institution list with "Other/Not Listed", and a skill taxonomy that has
+"Figma (Software)" but no "Design Systems". The E-Signature stays the
+candidate's. Measured 19 Oct, one application submitted. Re-read the optional
+marketing box before handing over: it was found ticked after a run of scripted
+skill adds, and the cause is not pinned down.
+
+### Workday's citizenship question looked like it had no row for you
+
+"Citizenship Status for Country of Application" asks for your status in the
+**job's** country, not for your nationality. Typing your own country finds
+nothing, which reads as a broken list, and on 19 Oct a relocation application
+nearly went unsent because of it. Search the job's country and pick its
+non-citizen option.
+
+### Smaller traps, each measured on a real application
+
+- **Ashby:** uploading the CV wipes a phone number typed before it and resets
+  the Yes/No buttons (13 Oct). Upload first, then the phone, then the buttons.
+- **Teamtailor:** with the cookie banner open, neither the phone picker's
+  search box nor the phone field takes typing. Decline the cookies first; the
+  country can be picked by `data-country-code` without the search box.
+- **Himalayas** (via freehire): the page carries a single-country badge that
+  freehire's record does not show, and every Apply button leads to a signup
+  wall. Read the badge first.
+- **LinkedIn read mode:** a detail loop left in a background tab slows to
+  about one detail a minute because Chrome throttles hidden timers (14 Oct);
+  drive the gap from outside instead. `sessionStorage` belongs to the tab's
+  origin, so read the inbox in another tab and keep full apply URLs in the
+  records.
+
+### Upgrading
+
+Nothing to migrate. Your `profile/`, `applications/` and `runs/` are
+git-ignored and untouched. To use the new row flags, add `"every_run": true`
+to the LinkedIn rows that bring you applications and `"alert_only": true` to
+the ones you only want as email alerts, in `profile/settings.json`. Rows
+without either flag rotate as before.
+
 ## v0.7.0 — 12 October 2026
 
 Two new application systems, an open call to the platforms Seekter works
