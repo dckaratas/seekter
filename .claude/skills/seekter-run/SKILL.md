@@ -26,6 +26,8 @@ Run `node scripts/seekter.mjs settings --check` first. It creates `profile/setti
 
 If the profile has no `Disclaimer accepted:` line with a date (a profile written before the line existed), show the disclaimer sentence from `/seekter-init` once, word for word. No: stop the run. Yes: add the line with today's date, then continue.
 
+**CVs kept as data are printed before anything else.** If `profile/resumes/` exists, compare each `<name>.json` with the PDF the profile's §2 table maps it to; when the JSON is newer, or the PDF is missing, print it again with `node scripts/cv.mjs pdf profile/resumes/<name>.json --out <that PDF>`. This is mechanical, not a judgement: the content is the candidate's own, and a form must never receive a PDF older than the data it was printed from.
+
 Then:
 1. `node scripts/seekter.mjs stats` to see the tracker's size. Dedup is `node scripts/seekter.mjs check <url> --company <name>`: exit code 1 = already tracked, 2 = the company is on hold (§2.1.7).
 2. Open a task list in this order: the four source steps below, then **"Filter and rank"**, then **"Apply"**, then "Log to tracker" and "Report". Applying is one task at the end, not something interleaved with the sweeping, for the reason in §1.
