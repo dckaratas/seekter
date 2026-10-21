@@ -72,7 +72,7 @@ profile/
   profile.md          ← everything about you; the only place personal values live
   settings.json       ← every switch and number: queries, boards, LinkedIn mode, limits
   documents/          ← your CVs and portfolio PDF, the files that get uploaded
-  resumes/            ← optional: CVs as data (JSON), printed into documents/ by scripts/cv.mjs
+  resumes/cv.json     ← your master CV: facts, a pool of bullets and the CV types printed into documents/
 ```
 
 **CVs go in `profile/documents/`.** `/seekter-init` asks for the file path and copies them there; to add or replace one later, drop the PDF in that folder and update the table in `profile/profile.md` §2 (which CV is the default, which one is for which role type). Forms are filled from these files only, so keep the current version here and remove old ones.
@@ -147,23 +147,25 @@ node scripts/import_csv.mjs export.csv
 
 Column names are matched loosely (Position/Role/Title, Company, Status, Job URL, Applied on, Source, Notes…). Rows that point to the same posting are merged. Rows without a URL are imported but can only be matched by company name later, so fill in URLs where you have them.
 
-### Printing a CV
+### Your CV: one set of facts, a CV for each kind of role
 
-A CV can live as data instead of a finished PDF: `profile/resumes/<name>.json`, in the same format as the resume editor on [seekter.dev](https://seekter.dev), so a resume exported from the site works as is. The kit prints it with the Chrome already on your machine:
+A Product Designer posting and a Forward Deployed Engineer posting look for different evidence in the first lines of every job, so they should not get the same CV. But four CV files drift apart: fix a date in one and the others keep the old one. Seekter keeps **one master CV** (`profile/resumes/cv.json`): every job, date and number once, and under each job a pool of bullets tagged by theme (`product`, `design-system`, `engineering`, `research`, `ui`, `ai`…). Each **CV type** in the same file picks from that pool: its own headline and summary, the bullets that fit, in the order that fits, which projects and skill groups to show, and how much to say about older jobs. A type can choose and order the facts but cannot add one.
 
 ```bash
-node scripts/cv.mjs check profile/resumes/senior-product-designer.json   # what was read
-node scripts/cv.mjs pdf profile/resumes/senior-product-designer.json --out profile/documents/senior-product-designer.pdf
+node scripts/cv.mjs list     profile/resumes/cv.json                          # the CV types and their PDFs
+node scripts/cv.mjs validate profile/resumes/cv.json                          # facts, numbers, dates, voice, length
+node scripts/cv.mjs pdf      profile/resumes/cv.json --all                    # print every type to profile/documents/
+node scripts/cv.mjs pdf      profile/resumes/cv.json --variant product-designer --drafts --out review.pdf
 ```
 
-The look is `templates/cv/cv.css`, the same stylesheet the site uses: one column, A4, real text a parser can read. `templates/cv/example.json` is a complete, fictional resume to start from. If your browser is not in a standard place, set `SEEKTER_CHROME` to its binary.
+`validate` holds the CV to the profile: every number has to be in the profile's facts, dates and titles have to match its work history, the profile's banned phrases are flagged, and so are overlapping jobs and a CV likely longer than two pages. New text (a bullet, a headline, a summary) carries `"draft": true` until you approve it, and a PDF that would print a draft is refused unless `--drafts` asks for a review copy. The look is `templates/cv/cv.css`, the stylesheet of [seekter.dev](https://seekter.dev)'s resume editor; a single resume exported from the site (`ResumeData`) renders unchanged. `templates/cv/cv.example.json` is a fictional master to start from. If your browser is not in a standard place, set `SEEKTER_CHROME` to its binary.
 
 ## What's in the repo
 
 ```
 .claude/skills/     seekter-init · seekter-run · seekter-log · seekter-report · seekter-git
 reference/          sources/ (one file per job source) · ats/ (one file per application form system); each has a _core.md read first
-templates/          profile.md · settings.json · cv/ (the CV stylesheet and an example resume)
+templates/          profile.md · settings.json · cv/ (the CV stylesheet, an example master CV and an example site resume)
 scripts/            seekter.mjs · freehire_sweep.mjs · employer_sweep.mjs · import_csv.mjs · cv.mjs
 tests/              tracker CLI tests: node --test tests/seekter.test.mjs
 .github/            leak scan and test workflows · issue and pull request templates

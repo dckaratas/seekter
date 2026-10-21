@@ -1,16 +1,20 @@
 #!/usr/bin/env node
-// CV engine: a resume as JSON in, an ATS-readable A4 PDF out. Node 20+, no packages; the
-// PDF is printed by the Chrome (or Chromium, or Edge) already on the machine.
+// CV engine. One master CV holds every fact and a pool of bullets; each CV type ("variant")
+// picks from it: its own headline and summary, which bullets of each job and in what order,
+// which projects and skill groups. Printed as an ATS-readable A4 PDF by the Chrome (or
+// Chromium, or Edge) already on the machine. Node 20+, no packages.
 //
-//   node scripts/cv.mjs pdf  profile/resumes/<name>.json [--out file.pdf] [--html file.html]
-//   node scripts/cv.mjs html profile/resumes/<name>.json [--out file.html]
-//   node scripts/cv.mjs check profile/resumes/<name>.json     # print what was read, render nothing
+//   node scripts/cv.mjs list     profile/resumes/cv.json                   # the CV types and their PDFs
+//   node scripts/cv.mjs validate profile/resumes/cv.json                   # facts, numbers, dates, voice, length
+//   node scripts/cv.mjs pdf      profile/resumes/cv.json --all             # print every CV type to its PDF
+//   node scripts/cv.mjs pdf      profile/resumes/cv.json --variant <name> [--out file.pdf]
+//   node scripts/cv.mjs build    profile/resumes/cv.json --variant <name>  # the seekter.dev resume JSON for one type
+//   node scripts/cv.mjs check    <file.json> [--variant <name>]            # print what was read, render nothing
 //
-// The JSON is the resume format of seekter.dev's editor (`ResumeData`), so a resume
-// exported from the site renders here unchanged, and the look is the same file:
-// templates/cv/cv.css is seekter-web/src/styles/cv.css. templates/cv/example.json is a
-// complete, fictional example. SEEKTER_CHROME names the browser binary when it is not in
-// a standard place.
+// A single resume in seekter.dev's format (`ResumeData`, no "variants") also renders, so a
+// resume exported from the site works unchanged. The look is templates/cv/cv.css, the site's
+// own stylesheet; templates/cv/example.json is a complete, fictional master CV. SEEKTER_CHROME
+// names the browser binary when it is not in a standard place.
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -67,12 +71,211 @@ export function mergeResume(raw) {
 }
 
 // A file exported from the site's API wraps the data: {"resume": {"title", "data": {...}}}.
-export function loadResume(file) {
-  let raw;
-  try { raw = JSON.parse(fs.readFileSync(file, "utf8")); } catch (e) { die(`problem: ${file} is not valid JSON: ${e.message}`); }
+export function readJson(file) {
+  try { return JSON.parse(fs.readFileSync(file, "utf8")); } catch (e) { die(`problem: ${file} is not valid JSON: ${e.message}`); }
+}
+
+export const isMaster = (raw) => isObj(raw) && isObj(raw.variants);
+
+export function loadResume(file, variant = null) {
+  let raw = readJson(file);
+  if (isMaster(raw)) {
+    if (!variant) die(`problem: ${file} is a master CV; name a type with --variant (${Object.keys(raw.variants).join(", ")})`);
+    return buildVariant(raw, variant);
+  }
   if (isObj(raw?.resume?.data)) raw = raw.resume.data;
   else if (isObj(raw?.data) && isObj(raw.data.header)) raw = raw.data;
   return mergeResume(raw);
+}
+
+// ---------- the master CV and its types ----------
+// A bullet in the pool is {id, text, tags[], draft?}. A type picks bullets either by id
+// (`bullets: {<job id>: [bullet ids]}`, in that order) or by tag: every bullet that shares a
+// tag with the type, most relevant first (a tag earlier in the type's list weighs more), up to
+// `bullets_per_job`, and fewer for older jobs (`older`: [{before: "YYYY-MM", bullets: n}, ...]).
+// `descriptions: {before}` and `education_notes: false` shorten a type further.
+const textOf = (b) => (typeof b === "string" ? b : b?.text ?? "");
+
+export function pickBullets(job, v) {
+  const pool = arr(job.bullets).map((b, i) => (typeof b === "string" ? { id: `b${i}`, text: b, tags: [] } : { ...b, tags: arr(b.tags) }));
+  const explicit = isObj(v.bullets) ? v.bullets[job.id] : undefined;
+  if (Array.isArray(explicit)) return explicit.map((id) => pool.find((b) => b.id === id)).filter(Boolean);
+  const tags = arr(v.tags);
+  // `older` is one tier ({before, bullets}) or a list of them; the earliest cut-off a job falls under wins.
+  const tiers = (Array.isArray(v.older) ? v.older : isObj(v.older) ? [v.older] : []).filter((x) => x.before)
+    .sort((x, y) => (x.before < y.before ? -1 : 1));
+  const tier = tiers.find((x) => (job.start || "") < x.before);
+  const cap = tier ? (tier.bullets ?? 2) : (v.bullets_per_job ?? 4);
+  if (!tags.length) return pool.slice(0, cap);
+  const score = (b) => tags.reduce((s, t, i) => s + (b.tags.includes(t) ? tags.length - i : 0), 0);
+  return pool.map((b, i) => ({ b, i, s: score(b) })).filter((x) => x.s > 0)
+    .sort((x, y) => y.s - x.s || x.i - y.i).slice(0, cap).map((x) => x.b);
+}
+
+// `descriptions`: true (default), false, or {before: "YYYY-MM"} to keep them only for later jobs.
+const showDescription = (e, v) => v.descriptions === false ? false
+  : isObj(v.descriptions) && v.descriptions.before ? (e.start || "") >= v.descriptions.before : true;
+
+export function buildVariant(master, name) {
+  const v = master.variants?.[name];
+  if (!isObj(v)) die(`problem: no CV type "${name}"; the types are ${Object.keys(master.variants || {}).join(", ")}`);
+  const keep = (list, ids) => (Array.isArray(ids) ? ids.map((id) => list.find((x) => x.id === id)).filter(Boolean) : list);
+  const drop = new Set(arr(v.drop));
+  const experience = arr(master.experience).filter((e) => !drop.has(e.id)).map((e) => ({
+    ...e, description: showDescription(e, v) ? e.description : "", bullets: pickBullets(e, v).map((b) => ({ text: b.text })) }));
+  return mergeResume({
+    header: { ...master.header, role: v.role ?? master.header?.role ?? "" },
+    summary: v.summary ?? master.summary ?? "",
+    experience,
+    projects: keep(arr(master.projects), v.projects),
+    skills: keep(arr(master.skills), v.skills),
+    education: v.education_notes === false ? arr(master.education).map(({ note, ...e }) => e) : arr(master.education),
+    certifications: keep(arr(master.certifications), v.certifications),
+    languages: arr(master.languages),
+    sectionOrder: v.sectionOrder ?? master.sectionOrder,
+    hiddenSections: v.hiddenSections ?? master.hiddenSections,
+  });
+}
+
+// The draft bullets a type would print. A draft is text the candidate has not approved yet.
+export function draftsIn(master, name) {
+  const v = master.variants[name];
+  return arr(master.experience).filter((e) => !arr(v.drop).includes(e.id))
+    .flatMap((e) => pickBullets(e, v).filter((b) => b.draft).map((b) => `${e.company}: ${b.id}`))
+    .concat(v.draft ? [`the type itself (headline or summary)`] : []);
+}
+
+// ---------- validation ----------
+const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+const norm = (s) => String(s ?? "").toLowerCase().replace(/[–—]/g, "-").replace(/×/g, "x").replace(/\s+/g, " ");
+
+// Every number a reader could check: 870, 50+, 15-20, 1,500, 2-3x, 5-10.
+const NUMBER = /\d[\d,.]*(?:\s?[-–]\s?\d[\d,.]*)?\s?(?:%|\+|x|×)?/g;
+
+function numbersIn(text) {
+  return [...new Set((text.match(NUMBER) || []).map((n) => n.trim().replace(/[.,]$/, "")).filter((n) => /\d/.test(n)))];
+}
+
+function ymFromWords(s) {
+  const out = [];
+  for (const m of s.matchAll(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(\d{4})\b|\bpresent\b/gi)) {
+    out.push(m[0].toLowerCase() === "present" ? "present" : `${m[2]}-${String(MONTHS.indexOf(m[1].toLowerCase()) + 1).padStart(2, "0")}`);
+  }
+  return out;
+}
+
+// The profile's work history table: | Company | Title | Dates |.
+function workHistory(profile) {
+  const rows = [];
+  let inTable = false;
+  for (const line of profile.split("\n")) {
+    if (/^\|\s*Company\s*\|\s*Title\s*\|\s*Dates\s*\|/i.test(line)) { inTable = true; continue; }
+    if (!inTable) continue;
+    if (!line.startsWith("|")) { inTable = false; continue; }
+    const cells = line.split("|").slice(1, -1).map((c) => c.trim());
+    if (cells.length < 3 || /^-+$/.test(cells[0])) continue;
+    const [start, end] = ymFromWords(cells[2]);
+    rows.push({ company: cells[0].replace(/\*/g, ""), title: cells[1], start, end });
+  }
+  return rows;
+}
+
+// The literal phrases of the profile's "Banned phrases" line; descriptions of patterns
+// ("a colon followed by...", "not just X but Y") are for a reader, not a search.
+function bannedPhrases(profile) {
+  const m = profile.match(/Banned phrases:?\**:?\s*(.+)/i);
+  if (!m) return [];
+  return m[1].replace(/\.$/, "").split("·").flatMap((p) => {
+    const quoted = p.match(/"([^"]+)"/);
+    if (quoted) return [quoted[1]];
+    if (/\b(X|Y)\b|followed by|as filler|\{\{/.test(p)) return [];
+    return p.split("/").map((x) => x.trim()).filter((x) => x && x.split(" ").length <= 4);
+  });
+}
+
+const sameCompany = (a, b) => {
+  const k = (s) => norm(s).replace(/\.(com|digital|io|app)\b/g, "").replace(/[^a-z0-9ğüşıöç]+/g, "");
+  return k(a) === k(b) || k(a).startsWith(k(b)) || k(b).startsWith(k(a));
+};
+
+export function validate(master, profile) {
+  const problems = [], checks = [];
+  const exp = arr(master.experience);
+  const ids = new Set();
+  for (const e of exp) {
+    if (!e.id) problems.push(`a job has no id: ${e.role} at ${e.company}`);
+    for (const b of arr(e.bullets)) {
+      if (typeof b === "string" || !b.id) problems.push(`${e.company}: a bullet has no id ("${textOf(b).slice(0, 50)}...")`);
+      else if (ids.has(`${e.id}/${b.id}`)) problems.push(`${e.company}: bullet id ${b.id} is used twice`);
+      else ids.add(`${e.id}/${b.id}`);
+    }
+    for (const f of ["start", "end"]) {
+      if (e[f] && !/^\d{4}(-\d{2})?$/.test(e[f]) && !/^present$/i.test(e[f])) problems.push(`${e.company}: ${f} "${e[f]}" is not YYYY-MM, YYYY or present`);
+    }
+  }
+  // Each type's picks must exist, and it must print something.
+  for (const [name, v] of Object.entries(master.variants || {})) {
+    if (isObj(v.bullets)) {
+      for (const [job, list] of Object.entries(v.bullets)) {
+        const e = exp.find((x) => x.id === job);
+        if (!e) { problems.push(`${name}: picks bullets of an unknown job "${job}"`); continue; }
+        for (const id of arr(list)) if (!arr(e.bullets).some((b) => b.id === id)) problems.push(`${name}: ${e.company} has no bullet "${id}"`);
+      }
+    }
+    for (const [key, list] of [["projects", master.projects], ["skills", master.skills], ["certifications", master.certifications]]) {
+      for (const id of arr(v[key])) if (!arr(list).some((x) => x.id === id)) problems.push(`${name}: unknown ${key} id "${id}"`);
+    }
+    for (const id of arr(v.drop)) if (!exp.some((e) => e.id === id)) problems.push(`${name}: drops an unknown job "${id}"`);
+    const d = buildVariant(master, name);
+    const words = renderBody(d).replace(/<[^>]+>/g, " ").split(/\s+/).filter(Boolean).length;
+    if (words > 1100) checks.push(`${name}: about ${words} words, likely more than two pages`);
+    const drafts = draftsIn(master, name);
+    if (drafts.length) checks.push(`${name}: prints ${drafts.length} draft(s) not yet approved: ${drafts.join("; ")}`);
+  }
+  if (!profile) return { problems, checks: [...checks, "no profile to check facts against"] };
+  // Dates and titles against the profile's work history.
+  const history = workHistory(profile);
+  for (const e of exp) {
+    const h = history.filter((r) => sameCompany(r.company, e.company));
+    if (!history.length) break;
+    if (!h.length) { checks.push(`${e.company} (${e.start}..${e.end || "open"}): not in the profile's work history`); continue; }
+    const r = h.find((x) => x.start === e.start) || h[0];
+    const end = /^present$/i.test(e.end || "") ? "present" : e.end || "";
+    if (r.start && e.start && r.start !== e.start) checks.push(`${e.company}: starts ${e.start} here, ${r.start} in the profile`);
+    if (r.end && r.end !== (end || "present")) checks.push(`${e.company}: ends ${end || "open"} here, ${r.end} in the profile`);
+    if (r.title && norm(r.title) !== norm(e.role) && !norm(r.title).includes(norm(e.role))) checks.push(`${e.company}: "${e.role}" here, "${r.title}" in the profile`);
+  }
+  // Numbers a reader could check must be in the profile's facts.
+  const prof = norm(profile).replace(/,(?=\d{3})/g, "");
+  const texts = [];
+  for (const e of exp) { texts.push([e.company, e.description || ""]); for (const b of arr(e.bullets)) texts.push([`${e.company} ${b.id ?? ""}`, textOf(b)]); }
+  for (const p of arr(master.projects)) texts.push([p.name, p.description || ""]);
+  for (const [name, v] of Object.entries(master.variants || {})) texts.push([`${name} summary`, v.summary || ""], [`${name} headline`, v.role || ""]);
+  if (master.summary) texts.push(["summary", master.summary]);
+  const seen = new Set();
+  for (const [where, text] of texts) {
+    for (const n of numbersIn(text)) {
+      const key = norm(n).replace(/,(?=\d{3})/g, "").replace(/\s/g, "");
+      if (/^(19|20)\d{2}$/.test(key) || /^\d$/.test(key) || seen.has(`${where}|${key}`)) continue;
+      seen.add(`${where}|${key}`);
+      const bare = key.replace(/[+%x]$/, "");
+      if (!prof.includes(key) && !prof.includes(bare) && !prof.includes(bare.replace("-", "–"))) checks.push(`${where}: "${n}" is not in the profile's facts`);
+    }
+  }
+  // Voice: the profile's banned phrases, and long dashes.
+  const banned = bannedPhrases(profile);
+  for (const [where, text] of texts) {
+    const low = norm(text);
+    for (const b of banned) if (new RegExp(`\\b${b.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`).test(low)) checks.push(`${where}: uses "${b}" (banned in the profile's voice)`);
+    if (/—/.test(text)) checks.push(`${where}: a long dash`);
+  }
+  // Overlapping jobs are worth a look (a side project inside a job is fine, two full-time jobs less so).
+  const span = exp.filter((e) => e.start).map((e) => ({ e, s: e.start, f: /^present$/i.test(e.end || "") || !e.end ? "9999" : e.end }));
+  for (let i = 0; i < span.length; i++) for (let j = i + 1; j < span.length; j++) {
+    const a = span[i], b = span[j];
+    if (a.s < b.f && b.s < a.f && a.f !== b.s && b.f !== a.s) checks.push(`${a.e.company} and ${b.e.company} overlap (${a.s}..${a.e.end || "open"} / ${b.s}..${b.e.end || "open"})`);
+  }
+  return { problems, checks };
 }
 
 // ---------- rendering: the markup of seekter-web's ResumeRender, as a string ----------
@@ -248,26 +451,72 @@ function summary(d) {
   return lines.join("\n");
 }
 
+function printOne(d, out, htmlOut) {
+  out = path.resolve(out);
+  fs.mkdirSync(path.dirname(out), { recursive: true });
+  const htmlFile = htmlOut ? path.resolve(htmlOut) : path.join(fs.mkdtempSync(path.join(os.tmpdir(), "seekter-cv-html-")), "cv.html");
+  fs.writeFileSync(htmlFile, renderHtml(d), "utf8");
+  try { printPdf(htmlFile, out); } finally { if (!htmlOut) fs.rmSync(path.dirname(htmlFile), { recursive: true, force: true }); }
+  console.log(path.relative(process.cwd(), out) || out);
+}
+
+// A type's PDF path is relative to the repository, e.g. profile/documents/<name>.pdf.
+const pdfPath = (v, name) => path.resolve(ROOT, v.pdf || path.join("profile", "documents", `${name}.pdf`));
+
 function main() {
   const [cmd, ...rest] = process.argv.slice(2);
-  const usage = "node scripts/cv.mjs {pdf,html,check} <resume.json> [--out FILE] [--html FILE]";
-  if (!["pdf", "html", "check"].includes(cmd)) die(`usage: ${usage}`, 2);
-  const a = parseArgs(rest, { usage, positional: ["resume"], options: { out: { default: null }, html: { default: null } } });
-  const d = loadResume(a.resume);
+  const usage = "node scripts/cv.mjs {list,validate,pdf,html,build,check} <cv.json> [--variant NAME | --all] [--out FILE] [--html FILE] [--drafts]";
+  if (!["list", "validate", "pdf", "html", "build", "check"].includes(cmd)) die(`usage: ${usage}`, 2);
+  const a = parseArgs(rest, { usage, positional: ["resume"], options: { out: { default: null }, html: { default: null },
+    variant: { default: null }, all: { flag: true }, drafts: { flag: true }, profile: { default: null } } });
+  const raw = readJson(a.resume);
+  const master = isMaster(raw) ? raw : null;
+  if (cmd === "list" || cmd === "validate") {
+    if (!master) die(`problem: ${a.resume} is a single resume, not a master CV with "variants"`);
+  }
+  if (cmd === "list") {
+    for (const [name, v] of Object.entries(master.variants)) {
+      const drafts = draftsIn(master, name).length;
+      console.log(`${name} | ${v.role || ""} | ${path.relative(ROOT, pdfPath(v, name))}${drafts ? ` | ${drafts} draft(s)` : ""}`);
+    }
+    return 0;
+  }
+  if (cmd === "validate") {
+    const prof = path.resolve(a.profile || path.join(ROOT, "profile", "profile.md"));
+    const { problems, checks } = validate(master, fs.existsSync(prof) ? fs.readFileSync(prof, "utf8") : "");
+    for (const c of checks) console.log("check: " + c);
+    for (const p of problems) console.log("problem: " + p);
+    console.log(`${problems.length} problems, ${checks.length} things to check`);
+    return problems.length ? 1 : 0;
+  }
+  if (cmd === "pdf" && a.all) {
+    if (!master) die("problem: --all needs a master CV");
+    for (const [name, v] of Object.entries(master.variants)) {
+      const drafts = draftsIn(master, name);
+      if (drafts.length && !a.drafts) { console.log(`skipped ${name}: ${drafts.length} draft(s) not yet approved (--drafts prints them anyway)`); continue; }
+      printOne(buildVariant(master, name), pdfPath(v, name), null);
+    }
+    return 0;
+  }
+  const d = loadResume(a.resume, a.variant);
   if (cmd === "check") { console.log(summary(d)); return 0; }
-  const base = a.resume.replace(/\.json$/i, "");
+  if (cmd === "build") {
+    const json = JSON.stringify(d, null, 2) + "\n";
+    if (a.out) { fs.writeFileSync(a.out, json, "utf8"); console.log(a.out); } else process.stdout.write(json);
+    return 0;
+  }
+  if (master && !a.drafts) {
+    const drafts = draftsIn(master, a.variant);
+    if (drafts.length) die(`problem: ${a.variant} prints ${drafts.length} draft(s) not yet approved: ${drafts.join("; ")}. Approve them, or pass --drafts for a review copy.`);
+  }
+  const base = master ? pdfPath(master.variants[a.variant], a.variant).replace(/\.pdf$/i, "") : a.resume.replace(/\.json$/i, "");
   if (cmd === "html") {
     const out = a.out || `${base}.html`;
     fs.writeFileSync(out, renderHtml(d), "utf8");
     console.log(out);
     return 0;
   }
-  const out = path.resolve(a.out || `${base}.pdf`);
-  fs.mkdirSync(path.dirname(out), { recursive: true });
-  const htmlFile = a.html ? path.resolve(a.html) : path.join(fs.mkdtempSync(path.join(os.tmpdir(), "seekter-cv-html-")), "cv.html");
-  fs.writeFileSync(htmlFile, renderHtml(d), "utf8");
-  try { printPdf(htmlFile, out); } finally { if (!a.html) fs.rmSync(path.dirname(htmlFile), { recursive: true, force: true }); }
-  console.log(path.relative(process.cwd(), out) || out);
+  printOne(d, a.out || `${base}.pdf`, a.html);
   return 0;
 }
 

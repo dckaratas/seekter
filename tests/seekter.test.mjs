@@ -800,3 +800,71 @@ describe("cv engine", async () => {
 function hasChrome(cv) {
   try { return fs.existsSync(cv.findChrome()); } catch { return false; }
 }
+
+describe("master CV and its types", async () => {
+  const cv = await import("../scripts/cv.mjs");
+  // A fictional master: one job with a tagged pool, two types that pick differently.
+  const master = () => ({
+    header: { full_name: "Jo Doe", location: "Berlin", email: "jo@example.com", links: [] },
+    experience: [
+      { id: "acme", company: "Acme", role: "Product Designer", start: "2024-01", end: "present", description: "A logistics tool.",
+        bullets: [
+          { id: "flow", text: "Redesigned the booking flow.", tags: ["product", "ui"] },
+          { id: "tokens", text: "Built the token pipeline.", tags: ["design-system", "engineering"] },
+          { id: "study", text: "Ran 12 interviews.", tags: ["research"] },
+          { id: "new", text: "A sentence nobody approved.", tags: ["design-system"], draft: true }] },
+      { id: "old", company: "Oldco", role: "Web Designer", start: "2015-01", end: "2017-06", description: "News site.",
+        bullets: [{ id: "a", text: "Built pages.", tags: ["ui"] }] }],
+    projects: [{ id: "p1", name: "Kit", description: "A kit." }, { id: "p2", name: "Lib", description: "A lib." }],
+    skills: [{ id: "s1", group: "Design", items: ["Figma"] }, { id: "s2", group: "Code", items: ["React"] }],
+    variants: {
+      product: { role: "Product Designer", summary: "Ships products.", tags: ["product", "research"], bullets_per_job: 2,
+        older: [{ before: "2020-01", bullets: 0 }], projects: ["p2"], skills: ["s1"] },
+      systems: { role: "Design System Designer", summary: "Builds systems.", tags: ["design-system"], bullets_per_job: 3 },
+      picked: { role: "X", summary: "Y", bullets: { acme: ["study", "flow"] }, drop: ["old"] },
+    },
+  });
+
+  test("a type picks the pool's bullets by its tags, most relevant first, and caps older jobs", () => {
+    const d = cv.buildVariant(master(), "product");
+    assert.equal(d.header.role, "Product Designer");
+    assert.deepEqual(d.experience[0].bullets.map((b) => b.text), ["Redesigned the booking flow.", "Ran 12 interviews."]);
+    assert.deepEqual(d.experience[1].bullets, [], "jobs before 2020 keep their line but no bullets");
+    assert.deepEqual(d.projects.map((p) => p.name), ["Lib"]);
+    assert.deepEqual(d.skills.map((s) => s.group), ["Design"]);
+  });
+
+  test("explicit picks win, in the order given, and a dropped job is gone", () => {
+    const d = cv.buildVariant(master(), "picked");
+    assert.deepEqual(d.experience.map((e) => e.company), ["Acme"]);
+    assert.deepEqual(d.experience[0].bullets.map((b) => b.text), ["Ran 12 interviews.", "Redesigned the booking flow."]);
+  });
+
+  test("a draft bullet is reported, and the PDF refuses it without --drafts", () => {
+    assert.deepEqual(cv.draftsIn(master(), "systems"), ["Acme: new"]);
+    assert.deepEqual(cv.draftsIn(master(), "product"), []);
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "seekter-cv-master-"));
+    try {
+      const f = path.join(tmp, "cv.json");
+      fs.writeFileSync(f, JSON.stringify(master()));
+      const p = spawnSync(process.execPath, [path.join(SCRIPTS, "cv.mjs"), "pdf", f, "--variant", "systems", "--out", path.join(tmp, "x.pdf")], { encoding: "utf8" });
+      assert.equal(p.status, 1);
+      assert.match(p.stderr, /draft\(s\) not yet approved/);
+    } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+  });
+
+  test("validate finds unbacked numbers, dates that disagree with the profile, banned phrases and bad picks", () => {
+    const m = master();
+    m.experience[0].bullets[0].text = "Redesigned the booking flow end to end, cutting drop-off by 40%.";
+    m.variants.picked.bullets.acme.push("ghost");
+    const profile = "## 8. Fact bank\n\n| Company | Title | Dates |\n|---|---|---|\n| Acme | Product Designer | Jan 2024 – Mar 2026 |\n" +
+      "| Oldco | Web Designer | Jan 2015 – Jun 2017 |\n\nFacts:\n- Ran 12 interviews at Acme.\n\n- **Banned phrases:** end to end / end-to-end · leverage · not just X but Y.\n";
+    const { problems, checks } = cv.validate(m, profile);
+    assert.ok(problems.some((p) => /picked: Acme has no bullet "ghost"/.test(p)), problems.join("\n"));
+    assert.ok(checks.some((c) => /"40%" is not in the profile's facts/.test(c)), checks.join("\n"));
+    assert.ok(!checks.some((c) => /"12"/.test(c)), "a number the profile has is fine");
+    assert.ok(checks.some((c) => /Acme: ends present here, 2026-03 in the profile/.test(c)), checks.join("\n"));
+    assert.ok(checks.some((c) => /uses "end to end"/.test(c)), checks.join("\n"));
+    assert.ok(checks.some((c) => /systems: prints 1 draft/.test(c)), checks.join("\n"));
+  });
+});
