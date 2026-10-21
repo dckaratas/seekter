@@ -23,7 +23,7 @@ body:
         - scripts/freehire_sweep.mjs
         - scripts/employer_sweep.mjs
         - scripts/import_csv.mjs
-        - scripts/cv.mjs
+        - scripts/resume.mjs
         - Somewhere else
     validations:
       required: true

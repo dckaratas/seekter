@@ -369,7 +369,7 @@ describe("tracker", () => {
     r = cli("settings", "--check");
     assert.equal(r.rc, 1);
     assert.match(r.out, /application email/);
-    assert.match(r.out, /no CV file/);
+    assert.match(r.out, /no resume yet/);
     assert.doesNotMatch(r.out, /NOTICE/, "an optional gap is asked later, it does not stop the run");
     profile("profile.md", "Email: a@b.c\nNotice: {{NOTICE}}\n");
     fs.writeFileSync(path.join(tmp, "profile", "documents", "cv.pdf"), "%PDF");
@@ -731,9 +731,9 @@ describe("employer sweep", () => {
 
 // ------------------------------------------------------------------ the CV engine
 
-describe("cv engine", async () => {
-  const cv = await import("../scripts/cv.mjs");
-  const example = JSON.parse(fs.readFileSync(path.join(REPO, "templates", "cv", "example.json"), "utf8"));
+describe("resume engine", async () => {
+  const cv = await import("../scripts/resume.mjs"); // the resume engine
+  const example = JSON.parse(fs.readFileSync(path.join(REPO, "templates", "resume", "example.json"), "utf8"));
 
   test("the example renders every section in its order, with the header first", () => {
     const html = cv.renderBody(cv.mergeResume(example));
@@ -776,7 +776,7 @@ describe("cv engine", async () => {
   });
 
   test("a file exported from the site's API is unwrapped, and old link fields still count", () => {
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "seekter-cv-"));
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "seekter-resume-"));
     try {
       const f = path.join(tmp, "r.json");
       fs.writeFileSync(f, JSON.stringify({ resume: { title: "t", data: { header: { full_name: "N", website: "n.example.com" } } } }));
@@ -787,10 +787,10 @@ describe("cv engine", async () => {
   });
 
   test("the example prints to a PDF when a browser is installed", { skip: !hasChrome(cv) && "no Chrome, Chromium or Edge here" }, () => {
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "seekter-cv-pdf-"));
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "seekter-resume-pdf-"));
     try {
       const out = path.join(tmp, "example.pdf");
-      const p = spawnSync(process.execPath, [path.join(SCRIPTS, "cv.mjs"), "pdf", path.join(REPO, "templates", "cv", "example.json"), "--out", out], { encoding: "utf8", timeout: 120000 });
+      const p = spawnSync(process.execPath, [path.join(SCRIPTS, "resume.mjs"), "pdf", path.join(REPO, "templates", "resume", "example.json"), "--out", out], { encoding: "utf8", timeout: 120000 });
       assert.equal(p.status, 0, p.stderr);
       assert.equal(fs.readFileSync(out).subarray(0, 5).toString(), "%PDF-");
     } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
@@ -801,8 +801,8 @@ function hasChrome(cv) {
   try { return fs.existsSync(cv.findChrome()); } catch { return false; }
 }
 
-describe("master CV and its types", async () => {
-  const cv = await import("../scripts/cv.mjs");
+describe("master resume and its types", async () => {
+  const cv = await import("../scripts/resume.mjs"); // the resume engine
   // A fictional master: one job with a tagged pool, two types that pick differently.
   const master = () => ({
     header: { full_name: "Jo Doe", location: "Berlin", email: "jo@example.com", links: [] },
@@ -843,11 +843,11 @@ describe("master CV and its types", async () => {
   test("a draft bullet is reported, and the PDF refuses it without --drafts", () => {
     assert.deepEqual(cv.draftsIn(master(), "systems"), ["Acme: new"]);
     assert.deepEqual(cv.draftsIn(master(), "product"), []);
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "seekter-cv-master-"));
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "seekter-resume-master-"));
     try {
       const f = path.join(tmp, "cv.json");
       fs.writeFileSync(f, JSON.stringify(master()));
-      const p = spawnSync(process.execPath, [path.join(SCRIPTS, "cv.mjs"), "pdf", f, "--variant", "systems", "--out", path.join(tmp, "x.pdf")], { encoding: "utf8" });
+      const p = spawnSync(process.execPath, [path.join(SCRIPTS, "resume.mjs"), "pdf", f, "--variant", "systems", "--out", path.join(tmp, "x.pdf")], { encoding: "utf8" });
       assert.equal(p.status, 1);
       assert.match(p.stderr, /draft\(s\) not yet approved/);
     } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
@@ -869,8 +869,8 @@ describe("master CV and its types", async () => {
   });
 });
 
-describe("fitting a CV type on two pages", async () => {
-  const cv = await import("../scripts/cv.mjs");
+describe("fitting a resume type on two pages", async () => {
+  const cv = await import("../scripts/resume.mjs"); // the resume engine
   const m = () => ({
     header: { full_name: "Jo", location: "Berlin", links: [{ label: "Portfolio", url: "jo.example.com" }] },
     experience: [
@@ -912,11 +912,11 @@ describe("fitting a CV type on two pages", async () => {
   });
 });
 
-test("add stores the CV type that went with an application", () => {
-  const tmp = makeRepo("seekter-cvtype-");
+test("add stores the resume type that went with an application", () => {
+  const tmp = makeRepo("seekter-resumetype-");
   try {
-    const r = runIn(tmp, "seekter.mjs", ["add", "--company", "Acme", "--role", "Designer", "--url", "https://acme.com/careers/1234567", "--cv", "design-system-designer"]);
+    const r = runIn(tmp, "seekter.mjs", ["add", "--company", "Acme", "--role", "Designer", "--url", "https://acme.com/careers/1234567", "--resume", "design-system-designer"]);
     assert.equal(r.rc, 0, r.err);
-    assert.match(fs.readFileSync(path.join(tmp, r.out.trim().split("\n")[0]), "utf8"), /^cv: design-system-designer$/m);
+    assert.match(fs.readFileSync(path.join(tmp, r.out.trim().split("\n")[0]), "utf8"), /^resume: design-system-designer$/m);
   } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 });

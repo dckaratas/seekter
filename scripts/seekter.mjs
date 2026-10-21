@@ -640,8 +640,8 @@ function cmdAdd(a) {
   const meta = { company: a.company, role: a.role, status: a.status, url: a.url, source: a.source, ats: a.ats,
     apply_type: a.apply_type, location_fit: a.location_fit, remote_scope: a.remote_scope, fit: a.fit,
     posted: a.posted, applied: a.applied || (a.status === "applied" ? today : ""), updated: today, job_key: key };
-  // Which CV type went with the application, so outcomes can be read per type later.
-  if (a.cv) meta.cv = a.cv;
+  // Which resume type went with the application, so outcomes can be read per type later.
+  if (a.resume) meta.resume = a.resume;
   let p;
   if (a.status === "skipped") {
     meta.notes = a.notes || a.why;
@@ -763,10 +763,13 @@ function cmdSettings(a) {
       problems.push(`profile/profile.md has no ${what} yet ({{${key}}}; run /seekter-init or fill it in)`);
     }
   }
-  const docs = path.join(ROOT, "profile", "documents");
-  const docFiles = isDir(docs) ? fs.readdirSync(docs).filter((f) => !f.startsWith(".")) : [];
-  if (text && !docFiles.some((f) => [".pdf", ".docx", ".doc"].includes(path.extname(f).toLowerCase()))) {
-    problems.push("profile/documents/ has no CV file (.pdf, .doc or .docx)");
+  // A resume is either a file the candidate brought (profile/documents/) or one Seekter prints
+  // from the master resume (profile/resume/json/resume.json, printed into profile/resume/).
+  const resumeFiles = ["documents", "resume"].map((d) => path.join(ROOT, "profile", d)).filter(isDir)
+    .flatMap((d) => fs.readdirSync(d).filter((f) => !f.startsWith(".")));
+  const hasMaster = fs.existsSync(path.join(ROOT, "profile", "resume", "json", "resume.json"));
+  if (text && !hasMaster && !resumeFiles.some((f) => [".pdf", ".docx", ".doc"].includes(path.extname(f).toLowerCase()))) {
+    problems.push("no resume yet: put a .pdf, .doc or .docx in profile/documents/, or a master resume at profile/resume/json/resume.json");
   }
   let mine = {};
   try { mine = JSON.parse(fs.readFileSync(SETTINGS, "utf8")); } catch { mine = {}; }
@@ -971,7 +974,7 @@ const COMMANDS = {
   add: { fn: cmdAdd, options: {
     company: { required: true }, role: { required: true }, url: s(), status: s({ default: "applied" }),
     source: s(), ats: s(), "apply-type": s(), "location-fit": s(), "remote-scope": s(), fit: s(), posted: s(),
-    applied: s(), date: s(), why: s(), notes: s(), answers: s(), log: s(), cv: s(),
+    applied: s(), date: s(), why: s(), notes: s(), answers: s(), log: s(), resume: s(),
     force: { flag: true }, "no-index": { flag: true } } },
   move: { fn: cmdMove, positional: ["target", "status"], options: { note: s(), answers: s() } },
   list: { fn: cmdList, options: { status: { default: null }, since: { default: null } } },

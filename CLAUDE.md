@@ -13,11 +13,11 @@ Seekter is a job-search agent that runs inside Claude Code: it searches job sour
 | `scripts/seekter.mjs` | Tracker CLI: check, check-many, add, move, list, index, stats | tracked |
 | `scripts/freehire_sweep.mjs` | Step 1 API sweep with the profile's queries | tracked |
 | `scripts/employer_sweep.mjs` | Step 1 API sweep of the employer watchlist (`employers` in settings) and, with `--hn`, the monthly HN "Who is hiring?" thread | tracked |
-| `scripts/cv.mjs` | CV engine: one master CV (`profile/resumes/cv.json`: facts, a tagged bullet pool, CV types) printed per type to A4 PDFs by the local Chrome; `validate` holds it to the profile. Look in `templates/cv/cv.css` | tracked |
+| `scripts/resume.mjs` | Resume engine: one master resume (`profile/resume/json/resume.json`: facts, a tagged bullet pool, resume types) printed per type into `profile/resume/` by the local Chrome; `validate` holds it to the profile. Look in `templates/resume/resume.css` | tracked |
 | `scripts/import_csv.mjs` | One-off import of an existing tracker (Notion/Sheets CSV) | tracked |
 | `tests/seekter.test.mjs` | Tracker CLI and sweep tests, no packages, throwaway repo per case: `node --test tests/seekter.test.mjs`. Run it after any change to `scripts/` | tracked |
 | `CHANGELOG.md` · `CONTRIBUTING.md` · `CODE_OF_CONDUCT.md` · `SECURITY.md` · `PRIVACY.md` · `DISCLAIMER.md` · `MANIFESTO.md` · `OPEN-CALL.md` · `LICENSE` · `.github/` | The public-repo documents: what changed in each release, what belongs in `reference/` and the rules that govern it, conduct, the threat model and how to report, where user data goes, what the user is responsible for, why the kit exists and the principles it is built on, what we ask of job platforms and ATSs and what a candidate's agent promises in return, MIT, the leak-scan workflow and the issue/PR templates | tracked |
-| `profile/` | The candidate: `profile.md` (facts and their own rules), `settings.json` (every switch and number, over the defaults in `templates/settings.json`), `documents/` (CVs) | **ignored** |
+| `profile/` | The candidate: `profile.md` (facts and their own rules), `settings.json` (every switch and number, over the defaults in `templates/settings.json`), `resume/` (the resume PDFs forms receive, printed from the master in `resume/json/resume.json`), `documents/` (files the candidate brings: a resume PDF when there is no `resume.json`, a portfolio PDF, cover letters) | **ignored** |
 | `applications/<YYYY-MM>/` | One markdown file per application or hand-off, plus `skipped.md` (one row per skipped posting). `applications/README.md` is the generated overview | **ignored** |
 | `runs/` | One report per run, plus sweep output | **ignored** |
 

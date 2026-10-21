@@ -15,7 +15,7 @@ Disclaimer accepted: {{DISCLAIMER_ACCEPTED_DATE}} (`DISCLAIMER.md`, asked at the
 | Field | Value |
 |---|---|
 | Full name | {{FULL_NAME}} |
-| First / last split | First **{{FIRST_NAME}}**, Last **{{LAST_NAME}}**. CV parsers often get this wrong; fix it. |
+| First / last split | First **{{FIRST_NAME}}**, Last **{{LAST_NAME}}**. Resume parsers often get this wrong; fix it. |
 | ASCII fallback | {{ASCII_NAME}} (for forms that reject non-ASCII characters) |
 | **Application email** | **{{EMAIL}} — the only valid address for forms.** |
 | Phone | {{PHONE_E164}} (E.164) · {{PHONE_LOCAL}} (local, when the country code is a separate field) |
@@ -43,8 +43,8 @@ Files live in `profile/documents/` (not committed).
 
 | File | Use |
 |---|---|
-| `profile/documents/{{CV_DEFAULT}}` | Default CV |
-| `profile/documents/{{CV_ALT}}` | CV for {{ALT_ROLE_TYPE}} roles (optional) |
+| `profile/documents/{{CV_DEFAULT}}` | Default resume |
+| `profile/documents/{{CV_ALT}}` | Resume for {{ALT_ROLE_TYPE}} roles (optional) |
 | `profile/documents/{{PORTFOLIO_PDF}}` | When a form demands a portfolio **file** (optional) |
 
 ---

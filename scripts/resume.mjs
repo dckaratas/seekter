@@ -1,19 +1,19 @@
 #!/usr/bin/env node
-// CV engine. One master CV holds every fact and a pool of bullets; each CV type ("variant")
+// resume engine. One master resume holds every fact and a pool of bullets; each resume type ("variant")
 // picks from it: its own headline and summary, which bullets of each job and in what order,
 // which projects and skill groups. Printed as an ATS-readable A4 PDF by the Chrome (or
 // Chromium, or Edge) already on the machine. Node 20+, no packages.
 //
-//   node scripts/cv.mjs list     profile/resumes/cv.json                   # the CV types and their PDFs
-//   node scripts/cv.mjs validate profile/resumes/cv.json [--pages]         # facts, numbers, dates, voice, first page; --pages prints to count pages
-//   node scripts/cv.mjs pdf      profile/resumes/cv.json --all             # print every CV type to its PDF
-//   node scripts/cv.mjs pdf      profile/resumes/cv.json --variant <name> [--out file.pdf]
-//   node scripts/cv.mjs build    profile/resumes/cv.json --variant <name>  # the seekter.dev resume JSON for one type
-//   node scripts/cv.mjs check    <file.json> [--variant <name>]            # print what was read, render nothing
+//   node scripts/resume.mjs list     profile/resume/json/resume.json                   # the resume types and their PDFs
+//   node scripts/resume.mjs validate profile/resume/json/resume.json [--pages]         # facts, numbers, dates, voice, first page; --pages prints to count pages
+//   node scripts/resume.mjs pdf      profile/resume/json/resume.json --all             # print every resume type to its PDF
+//   node scripts/resume.mjs pdf      profile/resume/json/resume.json --variant <name> [--out file.pdf]
+//   node scripts/resume.mjs build    profile/resume/json/resume.json --variant <name>  # one type as a single resume in seekter.dev's format
+//   node scripts/resume.mjs check    <file.json> [--variant <name>]            # print what was read, render nothing
 //
-// A single resume in seekter.dev's format (`ResumeData`, no "variants") also renders, so a
-// resume exported from the site works unchanged. The look is templates/cv/cv.css, the site's
-// own stylesheet; templates/cv/example.json is a complete, fictional master CV. SEEKTER_CHROME
+// A single resume in seekter.dev's format (the site calls it `ResumeData`; no "variants") also
+// renders, so a resume exported from the site works unchanged. The look is templates/resume/resume.css, the site's
+// own stylesheet; templates/resume/resume.example.json is a complete, fictional master resume. SEEKTER_CHROME
 // names the browser binary when it is not in a standard place.
 import fs from "node:fs";
 import os from "node:os";
@@ -23,7 +23,7 @@ import { pathToFileURL, fileURLToPath } from "node:url";
 import { ROOT, die, runMain, parseArgs, isMainModule } from "./seekter.mjs";
 
 export const SECTIONS = ["summary", "experience", "projects", "education", "skills", "certifications", "languages"];
-const CSS = path.join(ROOT, "templates", "cv", "cv.css");
+const CSS = path.join(ROOT, "templates", "resume", "resume.css");
 
 // ---------- reading: the same leniency as seekter-web's mergeResumeData ----------
 const isObj = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
@@ -80,7 +80,7 @@ export const isMaster = (raw) => isObj(raw) && isObj(raw.variants);
 export function loadResume(file, variant = null) {
   let raw = readJson(file);
   if (isMaster(raw)) {
-    if (!variant) die(`problem: ${file} is a master CV; name a type with --variant (${Object.keys(raw.variants).join(", ")})`);
+    if (!variant) die(`problem: ${file} is a master resume; name a type with --variant (${Object.keys(raw.variants).join(", ")})`);
     return buildVariant(raw, variant);
   }
   if (isObj(raw?.resume?.data)) raw = raw.resume.data;
@@ -88,7 +88,7 @@ export function loadResume(file, variant = null) {
   return mergeResume(raw);
 }
 
-// ---------- the master CV and its types ----------
+// ---------- the master resume and its types ----------
 // A bullet in the pool is {id, text, tags[], draft?}. A type picks bullets either by id
 // (`bullets: {<job id>: [bullet ids]}`, in that order) or by tag: every bullet that shares a
 // tag with the type, most relevant first (a tag earlier in the type's list weighs more), up to
@@ -138,7 +138,7 @@ const showDescription = (e, v) => v.descriptions === false ? false
 
 export function buildVariant(master, name) {
   const v = master.variants?.[name];
-  if (!isObj(v)) die(`problem: no CV type "${name}"; the types are ${Object.keys(master.variants || {}).join(", ")}`);
+  if (!isObj(v)) die(`problem: no resume type "${name}"; the types are ${Object.keys(master.variants || {}).join(", ")}`);
   const keep = (list, ids) => (Array.isArray(ids) ? ids.map((id) => list.find((x) => x.id === id)).filter(Boolean) : list);
   const drop = new Set(arr(v.drop));
   const kept = arr(master.experience).filter((e) => !drop.has(e.id));
@@ -452,7 +452,7 @@ export function renderBody(d) {
 
 export function renderHtml(d, pageSize = "A4") {
   const css = fs.readFileSync(CSS, "utf8").replace(/size:\s*A4;/, `size: ${pageSize};`);
-  return `<!doctype html>\n<html lang="en">\n  <head>\n    <meta charset="utf-8" />\n    <title>${esc(d.header.full_name || "Resume")}</title>\n` +
+  return `<!doctype html>\n<html lang="en">\n  <head>\n    <meta charset="utf-8" />\n    <title>${esc(d.header.full_name || "resume")}</title>\n` +
     `    <style>${css}</style>\n  </head>\n  <body>${renderBody(d)}</body>\n</html>\n`;
 }
 
@@ -481,7 +481,7 @@ export function findChrome() {
 // the browser the user is working in, and the time budget lets the web fonts arrive first:
 // a PDF printed before them falls back to the system sans and reflows every page.
 export function printPdf(htmlFile, outFile) {
-  const profile = fs.mkdtempSync(path.join(os.tmpdir(), "seekter-cv-"));
+  const profile = fs.mkdtempSync(path.join(os.tmpdir(), "seekter-resume-"));
   try {
     const r = spawnSync(findChrome(), ["--headless=new", "--disable-gpu", "--no-first-run", "--no-default-browser-check",
       `--user-data-dir=${profile}`, "--no-pdf-header-footer", "--run-all-compositor-stages-before-draw",
@@ -497,9 +497,9 @@ export function printPdf(htmlFile, outFile) {
 // Pages of a printed PDF: Chrome writes one /Type /Page object per page.
 export const pageCount = (file) => (fs.readFileSync(file).toString("latin1").match(/\/Type\s*\/Page[^s]/g) || []).length;
 
-// Print a type on A4 and on US Letter and count the pages: a CV that fits A4 can spill on Letter.
+// Print a type on A4 and on US Letter and count the pages: a resume that fits A4 can spill on Letter.
 function measure(d) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "seekter-cv-pages-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "seekter-resume-pages-"));
   try {
     return Object.fromEntries(["A4", "Letter"].map((size) => {
       const html = path.join(dir, `${size}.html`), pdf = path.join(dir, `${size}.pdf`);
@@ -523,30 +523,36 @@ function summary(d) {
 function printOne(d, out, htmlOut) {
   out = path.resolve(out);
   fs.mkdirSync(path.dirname(out), { recursive: true });
-  const htmlFile = htmlOut ? path.resolve(htmlOut) : path.join(fs.mkdtempSync(path.join(os.tmpdir(), "seekter-cv-html-")), "cv.html");
+  const htmlFile = htmlOut ? path.resolve(htmlOut) : path.join(fs.mkdtempSync(path.join(os.tmpdir(), "seekter-resume-html-")), "resume.html");
   fs.writeFileSync(htmlFile, renderHtml(d), "utf8");
   try { printPdf(htmlFile, out); } finally { if (!htmlOut) fs.rmSync(path.dirname(htmlFile), { recursive: true, force: true }); }
   console.log(path.relative(process.cwd(), out) || out);
 }
 
-// A type's PDF path is relative to the repository, e.g. profile/documents/<name>.pdf.
-const pdfPath = (v, name) => path.resolve(ROOT, v.pdf || path.join("profile", "documents", `${name}.pdf`));
+// A type's PDF lives next to the master: profile/resume/<file_prefix>-<type>.pdf. The prefix (the
+// candidate's name) is what a recruiter sees as the file name; `pdf` on a type overrides it.
+const pdfName = (master, name) => `${master.file_prefix ? `${master.file_prefix}-` : ""}${name}.pdf`;
+const pdfPath = (master, name) => path.resolve(ROOT, master.variants[name].pdf || path.join("profile", "resume", pdfName(master, name)));
+// A review copy of a type with drafts: profile/resume/drafts/<file>.pdf, never where forms upload from.
+const draftPath = (master, name) => path.resolve(ROOT, "profile", "resume", "drafts", pdfName(master, name));
 
 function main() {
   const [cmd, ...rest] = process.argv.slice(2);
-  const usage = "node scripts/cv.mjs {list,validate,pdf,html,build,check} <cv.json> [--variant NAME | --all] [--out FILE] [--html FILE] [--drafts]";
+  const usage = "node scripts/resume.mjs {list,validate,pdf,html,build,check} [resume.json] [--variant NAME | --all] [--out FILE] [--html FILE] [--drafts] [--pages]";
   if (!["list", "validate", "pdf", "html", "build", "check"].includes(cmd)) die(`usage: ${usage}`, 2);
-  const a = parseArgs(rest, { usage, positional: ["resume"], options: { out: { default: null }, html: { default: null },
+  // The file is optional: the candidate's own master resume is the default.
+  const file = rest[0] && !rest[0].startsWith("--") ? rest.shift() : path.join(ROOT, "profile", "resume", "json", "resume.json");
+  const a = parseArgs(rest, { usage, options: { out: { default: null }, html: { default: null },
     variant: { default: null }, all: { flag: true }, drafts: { flag: true }, profile: { default: null }, pages: { flag: true } } });
-  const raw = readJson(a.resume);
+  const raw = readJson(file);
   const master = isMaster(raw) ? raw : null;
   if (cmd === "list" || cmd === "validate") {
-    if (!master) die(`problem: ${a.resume} is a single resume, not a master CV with "variants"`);
+    if (!master) die(`problem: ${file} is a single resume, not a master resume with "variants"`);
   }
   if (cmd === "list") {
     for (const [name, v] of Object.entries(master.variants)) {
       const drafts = draftsIn(master, name).length;
-      console.log(`${name} | ${v.role || ""} | ${path.relative(ROOT, pdfPath(v, name))}${drafts ? ` | ${drafts} draft(s)` : ""}`);
+      console.log(`${name} | ${v.role || ""} | ${path.relative(ROOT, pdfPath(master, name))}${drafts ? ` | ${drafts} draft(s)` : ""}`);
     }
     return 0;
   }
@@ -554,7 +560,7 @@ function main() {
     const prof = path.resolve(a.profile || path.join(ROOT, "profile", "profile.md"));
     const { problems, checks } = validate(master, fs.existsSync(prof) ? fs.readFileSync(prof, "utf8") : "");
     if (a.pages) {
-      // Two pages is a ceiling, not a target: past it most screeners call a CV too long.
+      // Two pages is a ceiling, not a target: past it most screeners call a resume too long.
       for (const [name, v] of Object.entries(master.variants)) {
         const pages = measure(buildVariant(master, name));
         const max = v.max_pages ?? 2;
@@ -569,15 +575,15 @@ function main() {
     return problems.length ? 1 : 0;
   }
   if (cmd === "pdf" && a.all) {
-    if (!master) die("problem: --all needs a master CV");
+    if (!master) die("problem: --all needs a master resume");
     for (const [name, v] of Object.entries(master.variants)) {
       const drafts = draftsIn(master, name);
       if (drafts.length && !a.drafts) { console.log(`skipped ${name}: ${drafts.length} draft(s) not yet approved (--drafts prints them anyway)`); continue; }
-      printOne(buildVariant(master, name), pdfPath(v, name), null);
+      printOne(buildVariant(master, name), pdfPath(master, name), null);
     }
     return 0;
   }
-  const d = loadResume(a.resume, a.variant);
+  const d = loadResume(file, a.variant);
   if (cmd === "check") { console.log(summary(d)); return 0; }
   if (cmd === "build") {
     const json = JSON.stringify(d, null, 2) + "\n";
@@ -588,7 +594,8 @@ function main() {
     const drafts = draftsIn(master, a.variant);
     if (drafts.length) die(`problem: ${a.variant} prints ${drafts.length} draft(s) not yet approved: ${drafts.join("; ")}. Approve them, or pass --drafts for a review copy.`);
   }
-  const base = master ? pdfPath(master.variants[a.variant], a.variant).replace(/\.pdf$/i, "") : a.resume.replace(/\.json$/i, "");
+  const target = master ? (a.drafts && draftsIn(master, a.variant).length ? draftPath(master, a.variant) : pdfPath(master, a.variant)) : null;
+  const base = target ? target.replace(/\.pdf$/i, "") : file.replace(/\.json$/i, "");
   if (cmd === "html") {
     const out = a.out || `${base}.html`;
     fs.writeFileSync(out, renderHtml(d), "utf8");

@@ -38,7 +38,7 @@ Requirements: [Claude Code](https://docs.claude.com/en/docs/claude-code) (a paid
 
 | Command | What it does |
 |---|---|
-| `/seekter-init` | Interviews you and writes your profile: contact details, CVs, target roles, where you can work, salary bands, standard form answers, sectors you won't touch, a fact bank for free-text answers, your writing voice, and the search queries. Resumable. Can import an existing tracker from a Notion/Sheets CSV. |
+| `/seekter-init` | Interviews you and writes your profile: contact details, resumes, target roles, where you can work, salary bands, standard form answers, sectors you won't touch, a fact bank for free-text answers, your writing voice, and the search queries. Resumable. Can import an existing tracker from a Notion/Sheets CSV. |
 | `/seekter-run` | The daily run. Four sources in a fixed order (links you bring, freehire API, LinkedIn, other boards), filtering, dedup, form filling, tracker update, and a report with a per-source table. Applies without asking when a posting fits; stops only for things only you can decide. |
 | `/seekter-log` | Records what happened next: rejections, interviews, offers, applications you made by hand, or a sweep of your inbox. |
 | `/seekter-report` | Funnel and response rate by source and by location track, top skip reasons, open hand-offs, and at most two suggested changes. |
@@ -48,7 +48,7 @@ Requirements: [Claude Code](https://docs.claude.com/en/docs/claude-code) (a paid
 
 | When | Command | What it needs |
 |---|---|---|
-| Once | `/seekter-init` | Your CV file(s). Takes 20–30 minutes; you can stop and resume. |
+| Once | `/seekter-init` | Your resume file(s). Takes 20–30 minutes; you can stop and resume. |
 | Every working day | `/seekter-run` | Chrome open with the Claude in Chrome extension and your webmail logged in. Any links you collected go in `profile/links.txt` or the chat. |
 | When a company replies, or weekly | `/seekter-log` | For an inbox sweep: your webmail open and logged in, in the same Chrome. |
 | Weekly | `/seekter-report` | Nothing. It reads the tracker only. |
@@ -71,11 +71,13 @@ The **Needs you** table at the top of `applications/README.md` lists everything 
 profile/
   profile.md          ← everything about you; the only place personal values live
   settings.json       ← every switch and number: queries, boards, LinkedIn mode, limits
-  documents/          ← your CVs and portfolio PDF, the files that get uploaded
-  resumes/cv.json     ← your master CV: facts, a pool of bullets and the CV types printed into documents/
+  documents/          ← files you bring: a resume PDF if you keep no resume.json, a portfolio PDF, cover letters
+  resume/             ← the resume PDFs forms receive, one per resume type, named after you
+    json/resume.json  ← the master resume they are printed from: facts, a pool of bullets, the resume types
+    drafts/           ← review copies that still print unapproved text
 ```
 
-**CVs go in `profile/documents/`.** `/seekter-init` asks for the file path and copies them there; to add or replace one later, drop the PDF in that folder and update the table in `profile/profile.md` §2 (which CV is the default, which one is for which role type). Forms are filled from these files only, so keep the current version here and remove old ones.
+**A resume you bring goes in `profile/documents/`.** `/seekter-init` asks for the file path and copies it there; to add or replace one later, drop the PDF in that folder and update the table in `profile/profile.md` §2 (which resume is the default, which one is for which role type). **With a master resume** (`profile/resume/json/resume.json`), Seekter prints a PDF per resume type into `profile/resume/` instead, and those are what forms receive.
 
 To change a rule (a new blacklisted company, a salary band, a city you'd now accept), tell Seekter in chat; it edits `profile/profile.md` and quotes your words there. You can also edit the file by hand.
 
@@ -147,28 +149,28 @@ node scripts/import_csv.mjs export.csv
 
 Column names are matched loosely (Position/Role/Title, Company, Status, Job URL, Applied on, Source, Notes…). Rows that point to the same posting are merged. Rows without a URL are imported but can only be matched by company name later, so fill in URLs where you have them.
 
-### Your CV: one set of facts, a CV for each kind of role
+### Your resume: one set of facts, a resume for each kind of role
 
-A Product Designer posting and a Forward Deployed Engineer posting look for different evidence in the first lines of every job, so they should not get the same CV. But four CV files drift apart: fix a date in one and the others keep the old one. Seekter keeps **one master CV** (`profile/resumes/cv.json`): every job, date and number once, and under each job a pool of bullets tagged by theme (`product`, `design-system`, `engineering`, `research`, `ui`, `ai`…). Each **CV type** in the same file picks from that pool: its own headline and summary, the bullets that fit, in the order that fits, which projects and skill groups to show, and how much to say about older jobs. A type can choose and order the facts but cannot add one.
+A Product Designer posting and a Forward Deployed Engineer posting look for different evidence in the first lines of every job, so they should not get the same resume. But four resume files drift apart: fix a date in one and the others keep the old one. Seekter keeps **one master resume** (`profile/resume/json/resume.json`, whose PDFs it prints into `profile/resume/`, named `<file_prefix>-<type>.pdf` so a recruiter sees your name on the file): every job, date and number once, and under each job a pool of bullets tagged by theme (`product`, `design-system`, `engineering`, `research`, `ui`, `ai`…). Each **resume type** in the same file picks from that pool: its own headline and summary, the bullets that fit, in the order that fits, which projects and skill groups to show, and how much to say about older jobs. A type can choose and order the facts but cannot add one.
 
 ```bash
-node scripts/cv.mjs list     profile/resumes/cv.json                          # the CV types and their PDFs
-node scripts/cv.mjs validate profile/resumes/cv.json                          # facts, numbers, dates, voice, length
-node scripts/cv.mjs pdf      profile/resumes/cv.json --all                    # print every type to profile/documents/
-node scripts/cv.mjs pdf      profile/resumes/cv.json --variant product-designer --drafts --out review.pdf
+node scripts/resume.mjs list     profile/resume/json/resume.json                          # the resume types and their PDFs
+node scripts/resume.mjs validate profile/resume/json/resume.json                          # facts, numbers, dates, voice, length
+node scripts/resume.mjs pdf      profile/resume/json/resume.json --all                    # print every type into profile/resume/
+node scripts/resume.mjs pdf      profile/resume/json/resume.json --variant product-designer --drafts   # review copy in profile/resume/drafts/
 ```
 
-Two pages is the ceiling, checked on A4 and US Letter (`validate --pages`). Length is not what screens a CV out, but past two pages most screeners call it too long, and the first half of page one carries the decision: headline, employers, dates and a portfolio link. So a type can say less about older work instead of cutting it: `bullets_per_job` and `older` tiers, `earlier: {before}` to fold older jobs into one closing line, `short: true` to print each bullet's one-line `short` version, `skill_items`, and `layout: "compact"` (same type and colour, each job on one line). Each application's tracker record keeps the type that was sent (`add --cv <type>`), so outcomes can be read per type later.
+Two pages is the ceiling, checked on A4 and US Letter (`validate --pages`). Length is not what screens a resume out, but past two pages most screeners call it too long, and the first half of page one carries the decision: headline, employers, dates and a portfolio link. So a type can say less about older work instead of cutting it: `bullets_per_job` and `older` tiers, `earlier: {before}` to fold older jobs into one closing line, `short: true` to print each bullet's one-line `short` version, `skill_items`, and `layout: "compact"` (same type and colour, each job on one line). Each application's tracker record keeps the type that was sent (`add --resume <type>`), so outcomes can be read per type later.
 
-`validate` holds the CV to the profile: every number has to be in the profile's facts, dates and titles have to match its work history, the profile's banned phrases are flagged, and so are overlapping jobs and a CV likely longer than two pages. New text (a bullet, a headline, a summary) carries `"draft": true` until you approve it, and a PDF that would print a draft is refused unless `--drafts` asks for a review copy. The look is `templates/cv/cv.css`, the stylesheet of [seekter.dev](https://seekter.dev)'s resume editor; a single resume exported from the site (`ResumeData`) renders unchanged. `templates/cv/cv.example.json` is a fictional master to start from. If your browser is not in a standard place, set `SEEKTER_CHROME` to its binary.
+`validate` holds the resume to the profile: every number has to be in the profile's facts, dates and titles have to match its work history, the profile's banned phrases are flagged, and so are overlapping jobs and a resume likely longer than two pages. New text (a bullet, a headline, a summary) carries `"draft": true` until you approve it, and a PDF that would print a draft is refused unless `--drafts` asks for a review copy. The look is `templates/resume/resume.css`, the stylesheet of [seekter.dev](https://seekter.dev)'s resume editor; a single resume exported from the site (its `ResumeData` format) renders unchanged. `templates/resume/resume.example.json` is a fictional master to start from. If your browser is not in a standard place, set `SEEKTER_CHROME` to its binary.
 
 ## What's in the repo
 
 ```
 .claude/skills/     seekter-init · seekter-run · seekter-log · seekter-report · seekter-git
 reference/          sources/ (one file per job source) · ats/ (one file per application form system); each has a _core.md read first
-templates/          profile.md · settings.json · cv/ (the CV stylesheet, an example master CV and an example site resume)
-scripts/            seekter.mjs · freehire_sweep.mjs · employer_sweep.mjs · import_csv.mjs · cv.mjs
+templates/          profile.md · settings.json · resume/ (the resume stylesheet, an example master resume and an example resume in the site's format)
+scripts/            seekter.mjs · freehire_sweep.mjs · employer_sweep.mjs · import_csv.mjs · resume.mjs
 tests/              tracker CLI tests: node --test tests/seekter.test.mjs
 .github/            leak scan and test workflows · issue and pull request templates
 profile/  applications/  runs/     ← yours, git-ignored
@@ -213,7 +215,7 @@ Seekter is deliberately terminal-only, so anything with its own surface lives ou
 
 ## Security
 
-Seekter drives your logged-in browser and holds your contact details and CVs on disk, so the interesting questions are about untrusted input rather than about a server. Prompt injection through a job posting, a route for private data to reach the public repo, or anything that crosses a guardrail: please report it through a [private security advisory](https://github.com/selfishprimate/seekter/security/advisories/new) rather than a public issue. [SECURITY.md](SECURITY.md) has the details.
+Seekter drives your logged-in browser and holds your contact details and resumes on disk, so the interesting questions are about untrusted input rather than about a server. Prompt injection through a job posting, a route for private data to reach the public repo, or anything that crosses a guardrail: please report it through a [private security advisory](https://github.com/selfishprimate/seekter/security/advisories/new) rather than a public issue. [SECURITY.md](SECURITY.md) has the details.
 
 ## License
 
