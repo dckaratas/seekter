@@ -22,3 +22,13 @@
   `input.files` is **empty** because Personio swaps the element, so confirm from the filename
   rendered under the `CV*` heading.
 - The optional `field-gender` select stays empty; it is demographic data with no employer requirement.
+
+## Personio's own hiring site (`personio.com/careers/<uuid>/apply/`)
+
+Not the `*.jobs.personio.*` form above. Measured 20 Oct 2026:
+- The questions are Ashby's (`_systemfield_name`, uuid field names), and `api/non-user-graphql` with org `personio` and the posting uuid lists them, including the select options. The page itself is Personio's own React form.
+- **Uploading the CV re-renders the form and gives every input a new random `id`.** Setters written by `id` before the upload hit nothing afterwards. Address fields by `name` (`[name=_systemfield_name]`, `[name^=<uuid prefix>]`), or fill after the upload.
+- The yes/no and "how did you hear" questions are native `<select>` elements under a styled shell: set them with the `HTMLSelectElement` value setter plus `change`. "Preferred Work Location" is a custom checkbox list opened by clicking its header; tick by coordinate.
+- The country list still has no entry for some countries (see above); leave it empty and put `<CITY>, <COUNTRY>` in City.
+- A Usercentrics layer offers only "Accept All" up front; its "cookie settings" link opens toggles (optional ones off by default) and a "Save Services" button, which declines.
+- Phone wants digits only: the country code followed by `<PHONE_LOCAL>`, no `+` and no spaces. The closing "I agree" box is a two-year talent-pool consent: optional, leave it.
