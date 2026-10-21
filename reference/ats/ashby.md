@@ -24,6 +24,7 @@
   4. ASCII-swallowing field (`_systemfield_name` keeps only the non-ASCII letters): `find` → `form_input`+ref. Verify `value`.
   - Don't: `ctrl+a`+`Delete` (appends), `triple_click`+type, `End`+`Backspace`×60 (layout shift), ref-click+type (types nothing). **Never click into a long textarea and type** — caret lands mid-text (`ctrl+End` doesn't help); use `setSelectionRange`.
   - Number inputs with residue like `4e-`: `End` + `BackSpace` per char + digits.
+- **Never run the space-then-BackSpace commit on a `Number` field.** The space is rejected by the number input, so the BackSpace deletes the last digit instead. Measured 21 Oct 2026 (P2P.org): a phone number lost its final digit this way and the first submit silently did nothing. Commit number fields by retyping the whole value after `cmd+a`.
 - **Yes/No buttons:** these are `button[data-option=yes|no]` carrying `aria-pressed`, not radios. **Use a `computer left_click` with a `ref` from `find`.** Measured 24 Sept (Motorway): a coordinate click at the measured centre did nothing and the JS `MouseEvent` dispatch below also left `aria-pressed="false"`; one ref-click set it to `true` immediately. Verify with:
   ```js
   [...document.querySelectorAll('button[data-option]')].map(b=>b.getAttribute('data-option')+'='+b.getAttribute('aria-pressed')).join(' | ')
