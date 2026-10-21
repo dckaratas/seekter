@@ -728,3 +728,75 @@ describe("employer sweep", () => {
     assert.match(r.err, /No employers/);
   });
 });
+
+// ------------------------------------------------------------------ the CV engine
+
+describe("cv engine", async () => {
+  const cv = await import("../scripts/cv.mjs");
+  const example = JSON.parse(fs.readFileSync(path.join(REPO, "templates", "cv", "example.json"), "utf8"));
+
+  test("the example renders every section in its order, with the header first", () => {
+    const html = cv.renderBody(cv.mergeResume(example));
+    const at = (s) => html.indexOf(s);
+    assert.ok(at("Jonathan Doe") > 0 && at("Jonathan Doe") < at(">Summary<"));
+    const titles = ["Summary", "Experience", "Projects", "Education", "Skills", "Certifications", "Languages"].map((t) => at(`>${t}<`));
+    assert.deepEqual([...titles].sort((x, y) => x - y), titles, "sections out of order");
+    assert.ok(titles.every((i) => i > 0));
+  });
+
+  test("a hidden section is left out and a section missing from the order is appended", () => {
+    // seekter.dev stores the hidden sections, not the visible ones, so a resume written
+    // before a section existed still shows it rather than blanking it out.
+    const d = cv.mergeResume({ ...example, sectionOrder: ["experience", "summary"], hiddenSections: ["projects", "bogus"] });
+    assert.deepEqual(d.sectionOrder, ["experience", "summary", "projects", "education", "skills", "certifications", "languages"]);
+    assert.deepEqual(d.hiddenSections, ["projects"]);
+    const html = cv.renderBody(d);
+    assert.ok(!html.includes(">Projects<"));
+    assert.ok(html.indexOf(">Experience<") < html.indexOf(">Summary<"));
+  });
+
+  test("dates read like the site's: month and year, an open end shows the start alone", () => {
+    assert.equal(cv.formatDate("2022-03"), "Mar 2022");
+    assert.equal(cv.formatDate("2023"), "2023");
+    const html = cv.renderBody(cv.mergeResume({ experience: [
+      { role: "A", company: "X", start: "2020-01", end: "present", bullets: [] },
+      { role: "B", company: "Y", start: "2019-06", end: "2022-02", bullets: [] },
+      { role: "C", company: "Z", start: "2022-03", end: "", bullets: [] }] }));
+    assert.ok(html.includes("Jan 2020 - Present"));
+    assert.ok(html.includes("Jun 2019 - Feb 2022"));
+    assert.ok(html.includes(">Mar 2022<"));
+  });
+
+  test("text is escaped and bare URLs in running text become links", () => {
+    const html = cv.renderBody(cv.mergeResume({ summary: "<b>bold</b> & co",
+      experience: [{ role: "R", company: "C", bullets: ["Shipped example.com/x, then more."] }] }));
+    assert.ok(html.includes("&lt;b&gt;bold&lt;/b&gt; &amp; co"));
+    assert.ok(html.includes('<a class="cv-link-inline" href="https://example.com/x"'));
+    assert.ok(html.includes("</a>, then more."), "trailing punctuation stays outside the link");
+  });
+
+  test("a file exported from the site's API is unwrapped, and old link fields still count", () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "seekter-cv-"));
+    try {
+      const f = path.join(tmp, "r.json");
+      fs.writeFileSync(f, JSON.stringify({ resume: { title: "t", data: { header: { full_name: "N", website: "n.example.com" } } } }));
+      const d = cv.loadResume(f);
+      assert.equal(d.header.full_name, "N");
+      assert.deepEqual(d.header.links.map((l) => l.url), ["n.example.com"]);
+    } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+  });
+
+  test("the example prints to a PDF when a browser is installed", { skip: !hasChrome(cv) && "no Chrome, Chromium or Edge here" }, () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "seekter-cv-pdf-"));
+    try {
+      const out = path.join(tmp, "example.pdf");
+      const p = spawnSync(process.execPath, [path.join(SCRIPTS, "cv.mjs"), "pdf", path.join(REPO, "templates", "cv", "example.json"), "--out", out], { encoding: "utf8", timeout: 120000 });
+      assert.equal(p.status, 0, p.stderr);
+      assert.equal(fs.readFileSync(out).subarray(0, 5).toString(), "%PDF-");
+    } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+  });
+});
+
+function hasChrome(cv) {
+  try { return fs.existsSync(cv.findChrome()); } catch { return false; }
+}

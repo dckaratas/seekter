@@ -5,6 +5,7 @@
       "Bash(node scripts/freehire_sweep.mjs:*)",
       "Bash(node scripts/employer_sweep.mjs:*)",
       "Bash(node scripts/import_csv.mjs:*)",
+      "Bash(node scripts/cv.mjs:*)",
       "Bash(curl -sS:*)",
       "Read(./profile/**)",
       "Read(./reference/**)",

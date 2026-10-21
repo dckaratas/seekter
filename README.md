@@ -71,7 +71,8 @@ The **Needs you** table at the top of `applications/README.md` lists everything 
 profile/
   profile.md          ← everything about you; the only place personal values live
   settings.json       ← every switch and number: queries, boards, LinkedIn mode, limits
-  documents/          ← your CVs and portfolio PDF
+  documents/          ← your CVs and portfolio PDF, the files that get uploaded
+  resumes/            ← optional: CVs as data (JSON), printed into documents/ by scripts/cv.mjs
 ```
 
 **CVs go in `profile/documents/`.** `/seekter-init` asks for the file path and copies them there; to add or replace one later, drop the PDF in that folder and update the table in `profile/profile.md` §2 (which CV is the default, which one is for which role type). Forms are filled from these files only, so keep the current version here and remove old ones.
@@ -146,13 +147,24 @@ node scripts/import_csv.mjs export.csv
 
 Column names are matched loosely (Position/Role/Title, Company, Status, Job URL, Applied on, Source, Notes…). Rows that point to the same posting are merged. Rows without a URL are imported but can only be matched by company name later, so fill in URLs where you have them.
 
+### Printing a CV
+
+A CV can live as data instead of a finished PDF: `profile/resumes/<name>.json`, in the same format as the resume editor on [seekter.dev](https://seekter.dev), so a resume exported from the site works as is. The kit prints it with the Chrome already on your machine:
+
+```bash
+node scripts/cv.mjs check profile/resumes/senior-product-designer.json   # what was read
+node scripts/cv.mjs pdf profile/resumes/senior-product-designer.json --out profile/documents/senior-product-designer.pdf
+```
+
+The look is `templates/cv/cv.css`, the same stylesheet the site uses: one column, A4, real text a parser can read. `templates/cv/example.json` is a complete, fictional resume to start from. If your browser is not in a standard place, set `SEEKTER_CHROME` to its binary.
+
 ## What's in the repo
 
 ```
 .claude/skills/     seekter-init · seekter-run · seekter-log · seekter-report · seekter-git
 reference/          sources/ (one file per job source) · ats/ (one file per application form system); each has a _core.md read first
-templates/          profile.md · settings.json
-scripts/            seekter.mjs · freehire_sweep.mjs · employer_sweep.mjs · import_csv.mjs
+templates/          profile.md · settings.json · cv/ (the CV stylesheet and an example resume)
+scripts/            seekter.mjs · freehire_sweep.mjs · employer_sweep.mjs · import_csv.mjs · cv.mjs
 tests/              tracker CLI tests: node --test tests/seekter.test.mjs
 .github/            leak scan and test workflows · issue and pull request templates
 profile/  applications/  runs/     ← yours, git-ignored
