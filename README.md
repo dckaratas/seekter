@@ -32,7 +32,7 @@ Then, inside Claude Code:
 /seekter-run        # today's search and applications
 ```
 
-Requirements: [Claude Code](https://docs.claude.com/en/docs/claude-code) (a paid Claude plan or an Anthropic API account; Seekter itself is free, running it is not), the Claude in Chrome extension, Python 3.9+ and `curl`. No packages.
+Requirements: [Claude Code](https://docs.claude.com/en/docs/claude-code) (a paid Claude plan or an Anthropic API account; Seekter itself is free, running it is not), the Claude in Chrome extension and [Node.js](https://nodejs.org) 20 or newer. No packages, no `npm install`.
 
 ## Commands
 
@@ -78,7 +78,7 @@ profile/
 
 To change a rule (a new blacklisted company, a salary band, a city you'd now accept), tell Seekter in chat; it edits `profile/profile.md` and quotes your words there. You can also edit the file by hand.
 
-**`profile/settings.json` holds the switches**, each documented in `templates/settings.json`, and you can edit it by hand at any time. `/seekter-init` writes it from the template before the first question, so a setup you stop halfway still leaves a valid file: a key you never answered runs on the template's default. `python3 scripts/seekter.py settings --check` shows which values are still defaults and whether anything required is missing. Guardrails are not settings: nothing in this file can make Seekter solve a CAPTCHA, create an account or fill LinkedIn Easy Apply. A setup from before v0.3 has `profile/search.json`; the first run moves it to `settings.json` with its values unchanged.
+**`profile/settings.json` holds the switches**, each documented in `templates/settings.json`, and you can edit it by hand at any time. `/seekter-init` writes it from the template before the first question, so a setup you stop halfway still leaves a valid file: a key you never answered runs on the template's default. `node scripts/seekter.mjs settings --check` shows which values are still defaults and whether anything required is missing. Guardrails are not settings: nothing in this file can make Seekter solve a CAPTCHA, create an account or fill LinkedIn Easy Apply. A setup from before v0.3 has `profile/search.json`; the first run moves it to `settings.json` with its values unchanged.
 
 ## The tracker
 
@@ -125,12 +125,12 @@ job_key: uuid:1e548ada-…
 `job_key` is a normalised identity (LinkedIn ID, ATS UUID, Greenhouse ID…), so the same job reached through LinkedIn, an aggregator and the company site is still caught as a duplicate.
 
 ```bash
-python3 scripts/seekter.py check <url> --company "Acme"     # exit 1 if already tracked, 2 if the company is on hold
-python3 scripts/seekter.py move <url-or-file> rejected --note "form mail, 2 days"   # edits the status in place
-python3 scripts/seekter.py list --status pending
-python3 scripts/seekter.py stats --since 2026-09-01
-python3 scripts/seekter.py normalize --dry-run                # tidy enum values, fill ats from the url
-python3 scripts/seekter.py migrate                             # one-off: old applications/<status>/ folders -> month folders
+node scripts/seekter.mjs check <url> --company "Acme"     # exit 1 if already tracked, 2 if the company is on hold
+node scripts/seekter.mjs move <url-or-file> rejected --note "form mail, 2 days"   # edits the status in place
+node scripts/seekter.mjs list --status pending
+node scripts/seekter.mjs stats --since 2026-09-01
+node scripts/seekter.mjs normalize --dry-run                # tidy enum values, fill ats from the url
+node scripts/seekter.mjs migrate                             # one-off: old applications/<status>/ folders -> month folders
 ```
 
 `normalize` lowercases `source`, `ats` and `apply_type`, derives the application system (`ats`) from the posting URL, and moves an ATS name that was stored as `source` (a common mix-up in hand-kept trackers) into `ats`. It also collapses a log line written twice in a row. The CSV importer and `add` already do the rest; run it after editing files by hand.
@@ -140,8 +140,8 @@ python3 scripts/seekter.py migrate                             # one-off: old ap
 Export your Notion database, Airtable or Google Sheet as CSV, then:
 
 ```bash
-python3 scripts/import_csv.py export.csv --dry-run   # shows what would be created
-python3 scripts/import_csv.py export.csv
+node scripts/import_csv.mjs export.csv --dry-run   # shows what would be created
+node scripts/import_csv.mjs export.csv
 ```
 
 Column names are matched loosely (Position/Role/Title, Company, Status, Job URL, Applied on, Source, Notes…). Rows that point to the same posting are merged. Rows without a URL are imported but can only be matched by company name later, so fill in URLs where you have them.
@@ -152,8 +152,8 @@ Column names are matched loosely (Position/Role/Title, Company, Status, Job URL,
 .claude/skills/     seekter-init · seekter-run · seekter-log · seekter-report · seekter-git
 reference/          sources/ (one file per job source) · ats/ (one file per application form system); each has a _core.md read first
 templates/          profile.md · settings.json
-scripts/            seekter.py · freehire_sweep.py · import_csv.py
-tests/              tracker CLI tests: python3 -m unittest discover tests
+scripts/            seekter.mjs · freehire_sweep.mjs · employer_sweep.mjs · import_csv.mjs
+tests/              tracker CLI tests: node --test tests/seekter.test.mjs
 .github/            leak scan and test workflows · issue and pull request templates
 profile/  applications/  runs/     ← yours, git-ignored
 ```

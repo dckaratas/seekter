@@ -32,7 +32,7 @@ If you find a shape of text that gets past that — something in a posting or a 
 ## What the design gives you
 
 - **No server, no account, no telemetry.** Everything runs on your machine. Your profile and tracker never leave it unless you commit them, and `.gitignore` is set up so you don't do that by accident.
-- **No dependencies.** Python 3.9+ standard library and `curl`. There is nothing to `pip install`, which means there is no dependency chain to compromise. Keep it that way; a pull request adding a package needs a very good reason.
+- **No dependencies.** Node.js 20+ and its built-in modules. There is nothing to `npm install`, which means there is no dependency chain to compromise. Keep it that way; a pull request adding a package needs a very good reason.
 - **Nothing tracked assumes a person.** Every personal value comes from `profile/`, which git never sees. See `CONTRIBUTING.md` for how that is enforced.
 - **The agent stops rather than guesses.** A mandatory question with no truthful answer available becomes a hand-off in the **Needs you** table, not a plausible-looking answer.
 

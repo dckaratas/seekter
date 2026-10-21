@@ -19,9 +19,10 @@ body:
         - /seekter-log
         - /seekter-report
         - /seekter-git
-        - scripts/seekter.py
-        - scripts/freehire_sweep.py
-        - scripts/import_csv.py
+        - scripts/seekter.mjs
+        - scripts/freehire_sweep.mjs
+        - scripts/employer_sweep.mjs
+        - scripts/import_csv.mjs
         - Somewhere else
     validations:
       required: true
@@ -44,5 +45,5 @@ body:
     id: env
     attributes:
       label: Environment
-      description: OS, Python version, and whether the Claude in Chrome extension was connected.
-      placeholder: macOS 15.6, Python 3.11, extension connected
+      description: OS, Node version (`node -v`), and whether the Claude in Chrome extension was connected.
+      placeholder: macOS 15.6, Node 22.14, extension connected

@@ -109,7 +109,7 @@ on purpose: one place to be wrong instead of two.
 
 ```bash
 git switch main && git pull --ff-only && git status --short
-python3 -m unittest discover tests
+node --test tests/seekter.test.mjs
 git log <last-tag>..main --oneline
 ```
 

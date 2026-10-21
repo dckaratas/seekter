@@ -34,28 +34,9 @@ Pitfalls:
 - The API returns **403 to Python's default user agent**. curl and Node `fetch` pass. Always send an explicit `User-Agent`.
 - The Pro plan's "unattended applications" bypasses dedup and every filter. Don't use it. CLI install or API keys are the user's call.
 
-Sweep pattern (cloud shell):
-```python
-import json, subprocess, urllib.parse
-BASE = "https://freehire.me/api/v1/jobs/search"
-def get(**kw):
-    kw.setdefault("limit", 100)            # default ordering = relevance; do NOT sort by date
-    u = BASE + "?" + urllib.parse.urlencode(kw)
-    r = subprocess.run(["curl", "-sS", "-A", "Mozilla/5.0 job-hunt", u], capture_output=True, text=True)
-    try: return json.loads(r.stdout).get("data", [])
-    except Exception: return []
-rows = {}
-for q in PROFILE_QUERIES:                  # the candidate's target titles, from profile/settings.json
-    for cat in ["design", "frontend", "engineering_design", "product"]:
-        for reg in PROFILE_REGIONS:        # from the profile, e.g. global, eu, emea, mena
-            for j in get(q=q, category=cat, work_mode="remote", regions=reg):
-                rows[j["public_slug"]] = j
-# home-country pass without work_mode (for on-site/hybrid exceptions in the profile)
-for q in PROFILE_QUERIES:
-    for j in get(q=q, countries=PROFILE_HOME_COUNTRY):
-        rows[j["public_slug"]] = j
-# then: drop closed_at, gambling domain, non-accepted language, stale window, title filter, dedup vs tracker
-```
+Sweep: `node scripts/freehire_sweep.mjs` runs the pattern below with the profile's own values and writes `runs/<date>/freehire.json`; `--detail <n>` greps one candidate's eligibility lines.
+- One search per query × category × region with `work_mode=remote`, then one per query with `countries=<home country>` and no work mode (for the on-site and hybrid exceptions in the profile). `limit=100`, default ordering (relevance); never sort by date.
+- Then drop `closed_at`, a blocked domain, a language outside the profile's list, anything older than the window, the title filters, and anything already in the tracker.
 
 UI fallback (browser): `https://freehire.me/jobs?q=<search>&regions=europe,global&posted=1w`. `categories=design` is ignored in the UI; use `q`. Cards: `[...document.querySelectorAll('a')].filter(a=>/^\/jobs\//.test(a.getAttribute('href')||''))`. Real apply link on a detail page: `[...document.querySelectorAll('a')].filter(e=>/^apply$/i.test(e.innerText.trim())).map(e=>e.getAttribute('href'))`.
 
