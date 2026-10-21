@@ -55,3 +55,22 @@
 ## Google Forms (`forms.gle/…`, `docs.google.com/forms/…`)
 
 - A form with a file upload records the signed-in Google account's email ("The name, email address and photo associated with your Google Account will be recorded when you upload files"). If the browser's Google account is not the profile's application email, that address goes to the employer with the CV. Check the account line at the top of the form before filling; if it is the wrong address, hand off. Measured 2 Oct.
+
+## Airtable forms (`airtable.com/app…/shr…`, used as a careers form by small agencies)
+
+- Plain inputs take real typing through `find` refs; the "Role Applying" select is a combobox whose options are `[role=option]` and take a ref click.
+- **The resume field has no file input until "Attach file" is clicked.** The click opens a Filestack picker dialog, and only then do two `input[type=file]` elements exist, both inside the dialog. Expose them in place (style them visible and give them an `aria-label` so `find` can name them), upload to the first, then press the picker's blue **Upload** button. The file name appears under the field only after that button. Measured 21 Oct 2026.
+- Success replaces the form with "Thank you! We have received your application." on the same URL.
+
+## iCIMS (`careers-<co>.icims.com/jobs/<id>/…`), filled after the candidate's sign-in
+
+- The form lives in `iframe#icims_content_iframe`, same origin, so `contentDocument` reads and fills every field. `find` and `read_page` do not see inside it, which means `file_upload` gets no ref for the resume input: the candidate attaches the CV. Opening the iframe's own URL (`…/candidate?in_iframe=1`) in a new tab lands on the login page, because the email-code session does not carry over. Measured 21 Oct 2026.
+- Country, State/Province and Time Zone are `<select>`s that only load their options through a widget beside them (`a.dropdown-select`): click it, type in its search box, click the option. Plain selects such as phone and address type take the value of the option whose text matches.
+- The page creates the account in the same form (Login, Password, Re-enter). Those are the candidate's.
+
+## Taleo (`<co>.taleo.net/careersection/…/jobapply.ftl`), filled after the candidate's sign-in
+
+- Every "Add Work Experience" or "Remove Education" click reloads the whole page, so helpers on `window` vanish. Keep each step one self-contained script: fill the newest block, then click Add. Values already typed survive the reload.
+- Phone fields can enforce the US pattern `999-999-9999` even when the country is not the US; a number with its country code fails with "The value does not match the pattern". Enter the national number in that shape.
+- The source picker is two-level and may have no LinkedIn entry at all; pick the truthful nearest one and say so in the record.
+- Multi-select questions are checkboxes named `…-<n>-qc`, single-choice ones radios named `…-<n>-qr`; matching on the label text and calling `.click()` registers on both. The eSignature step is the candidate's. Measured 21 Oct 2026.
