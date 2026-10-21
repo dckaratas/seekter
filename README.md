@@ -158,6 +158,8 @@ node scripts/cv.mjs pdf      profile/resumes/cv.json --all                    # 
 node scripts/cv.mjs pdf      profile/resumes/cv.json --variant product-designer --drafts --out review.pdf
 ```
 
+Two pages is the ceiling, checked on A4 and US Letter (`validate --pages`). Length is not what screens a CV out, but past two pages most screeners call it too long, and the first half of page one carries the decision: headline, employers, dates and a portfolio link. So a type can say less about older work instead of cutting it: `bullets_per_job` and `older` tiers, `earlier: {before}` to fold older jobs into one closing line, `short: true` to print each bullet's one-line `short` version, `skill_items`, and `layout: "compact"` (same type and colour, each job on one line). Each application's tracker record keeps the type that was sent (`add --cv <type>`), so outcomes can be read per type later.
+
 `validate` holds the CV to the profile: every number has to be in the profile's facts, dates and titles have to match its work history, the profile's banned phrases are flagged, and so are overlapping jobs and a CV likely longer than two pages. New text (a bullet, a headline, a summary) carries `"draft": true` until you approve it, and a PDF that would print a draft is refused unless `--drafts` asks for a review copy. The look is `templates/cv/cv.css`, the stylesheet of [seekter.dev](https://seekter.dev)'s resume editor; a single resume exported from the site (`ResumeData`) renders unchanged. `templates/cv/cv.example.json` is a fictional master to start from. If your browser is not in a standard place, set `SEEKTER_CHROME` to its binary.
 
 ## What's in the repo

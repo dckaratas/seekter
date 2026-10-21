@@ -5,7 +5,7 @@
 // Chromium, or Edge) already on the machine. Node 20+, no packages.
 //
 //   node scripts/cv.mjs list     profile/resumes/cv.json                   # the CV types and their PDFs
-//   node scripts/cv.mjs validate profile/resumes/cv.json                   # facts, numbers, dates, voice, length
+//   node scripts/cv.mjs validate profile/resumes/cv.json [--pages]         # facts, numbers, dates, voice, first page; --pages prints to count pages
 //   node scripts/cv.mjs pdf      profile/resumes/cv.json --all             # print every CV type to its PDF
 //   node scripts/cv.mjs pdf      profile/resumes/cv.json --variant <name> [--out file.pdf]
 //   node scripts/cv.mjs build    profile/resumes/cv.json --variant <name>  # the seekter.dev resume JSON for one type
@@ -20,7 +20,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { pathToFileURL, fileURLToPath } from "node:url";
-import { ROOT, die, runMain, parseArgs } from "./seekter.mjs";
+import { ROOT, die, runMain, parseArgs, isMainModule } from "./seekter.mjs";
 
 export const SECTIONS = ["summary", "experience", "projects", "education", "skills", "certifications", "languages"];
 const CSS = path.join(ROOT, "templates", "cv", "cv.css");
@@ -99,17 +99,37 @@ const textOf = (b) => (typeof b === "string" ? b : b?.text ?? "");
 export function pickBullets(job, v) {
   const pool = arr(job.bullets).map((b, i) => (typeof b === "string" ? { id: `b${i}`, text: b, tags: [] } : { ...b, tags: arr(b.tags) }));
   const explicit = isObj(v.bullets) ? v.bullets[job.id] : undefined;
-  if (Array.isArray(explicit)) return explicit.map((id) => pool.find((b) => b.id === id)).filter(Boolean);
+  if (Array.isArray(explicit)) return explicit.map((id) => pool.find((b) => b.id === id)).filter(Boolean).map((b) => shortened(b, v));
   const tags = arr(v.tags);
   // `older` is one tier ({before, bullets}) or a list of them; the earliest cut-off a job falls under wins.
   const tiers = (Array.isArray(v.older) ? v.older : isObj(v.older) ? [v.older] : []).filter((x) => x.before)
     .sort((x, y) => (x.before < y.before ? -1 : 1));
   const tier = tiers.find((x) => (job.start || "") < x.before);
-  const cap = tier ? (tier.bullets ?? 2) : (v.bullets_per_job ?? 4);
-  if (!tags.length) return pool.slice(0, cap);
+  const cap = isObj(v.caps) && Number.isInteger(v.caps[job.id]) ? v.caps[job.id] : tier ? (tier.bullets ?? 2) : (v.bullets_per_job ?? 4);
+  if (!tags.length) return pool.slice(0, cap).map((b) => shortened(b, v));
   const score = (b) => tags.reduce((s, t, i) => s + (b.tags.includes(t) ? tags.length - i : 0), 0);
   return pool.map((b, i) => ({ b, i, s: score(b) })).filter((x) => x.s > 0)
-    .sort((x, y) => y.s - x.s || x.i - y.i).slice(0, cap).map((x) => x.b);
+    .sort((x, y) => y.s - x.s || x.i - y.i).slice(0, cap).map((x) => shortened(x.b, v));
+}
+
+// A type with `short: true` prints a bullet's `short` text where it has one. A short text is
+// new wording, so it is a draft until approved (`short_draft` removed).
+function shortened(b, v) {
+  if (!v.short || !b.short) return b;
+  return { ...b, text: b.short, draft: b.draft || !!b.short_draft };
+}
+
+// Jobs that started before `earlier.before` fold into one closing line: title, company and
+// dates, no bullets. Older experience stays visible without taking a page.
+const ym = (s) => formatDate(s || "") || s || "";
+const isEarlier = (e, v) => isObj(v.earlier) && v.earlier.before && (e.start || "") < v.earlier.before;
+function earlierLine(jobs, v) {
+  const old = jobs.filter((e) => isEarlier(e, v));
+  if (!old.length) return null;
+  const line = old.map((e) => `${[e.role, e.company && !/^earlier/i.test(e.company) ? e.company : ""].filter(Boolean).join(", ")} (${ym(e.start)} - ${ym(e.end)})`).join(" · ");
+  const starts = old.map((e) => e.start).filter(Boolean).sort(), ends = old.map((e) => e.end).filter(Boolean).sort();
+  return { id: "earlier", role: v.earlier.title || "Earlier experience", company: "", start: starts[0] || "",
+    end: ends[ends.length - 1] || "", description: line, bullets: [] };
 }
 
 // `descriptions`: true (default), false, or {before: "YYYY-MM"} to keep them only for later jobs.
@@ -121,15 +141,20 @@ export function buildVariant(master, name) {
   if (!isObj(v)) die(`problem: no CV type "${name}"; the types are ${Object.keys(master.variants || {}).join(", ")}`);
   const keep = (list, ids) => (Array.isArray(ids) ? ids.map((id) => list.find((x) => x.id === id)).filter(Boolean) : list);
   const drop = new Set(arr(v.drop));
-  const experience = arr(master.experience).filter((e) => !drop.has(e.id)).map((e) => ({
-    ...e, description: showDescription(e, v) ? e.description : "", bullets: pickBullets(e, v).map((b) => ({ text: b.text })) }));
-  return mergeResume({
+  const kept = arr(master.experience).filter((e) => !drop.has(e.id));
+  const experience = kept.filter((e) => !isEarlier(e, v)).map((e) => ({
+    ...e, description: !showDescription(e, v) ? "" : v.short && e.short_description ? e.short_description : e.description,
+    bullets: pickBullets(e, v).map((b) => ({ text: b.text })) }));
+  const earlier = earlierLine(kept, v);
+  if (earlier) experience.push(earlier);
+  return withLayout(v.layout, {
     header: { ...master.header, role: v.role ?? master.header?.role ?? "" },
     summary: v.summary ?? master.summary ?? "",
     experience,
-    projects: keep(arr(master.projects), v.projects),
-    skills: keep(arr(master.skills), v.skills),
-    education: v.education_notes === false ? arr(master.education).map(({ note, ...e }) => e) : arr(master.education),
+    projects: keep(arr(master.projects), v.projects).map((p) => (v.short && p.short_description ? { ...p, description: p.short_description } : p)),
+    // `skill_items` caps each group's list, keeping the order the master gives.
+    skills: keep(arr(master.skills), v.skills).map((s) => (Number.isInteger(v.skill_items) ? { ...s, items: arr(s.items).slice(0, v.skill_items) } : s)),
+    education: keep(arr(master.education), v.education).map((e) => (v.education_notes === false ? (({ note, ...rest }) => rest)(e) : e)),
     certifications: keep(arr(master.certifications), v.certifications),
     languages: arr(master.languages),
     sectionOrder: v.sectionOrder ?? master.sectionOrder,
@@ -137,11 +162,19 @@ export function buildVariant(master, name) {
   });
 }
 
+// `layout: "compact"` keeps the look but puts each job on one line and tightens the spacing.
+function withLayout(layout, raw) {
+  const d = mergeResume(raw);
+  if (layout === "compact") d.layout = "compact";
+  return d;
+}
+
 // The draft bullets a type would print. A draft is text the candidate has not approved yet.
 export function draftsIn(master, name) {
   const v = master.variants[name];
-  return arr(master.experience).filter((e) => !arr(v.drop).includes(e.id))
-    .flatMap((e) => pickBullets(e, v).filter((b) => b.draft).map((b) => `${e.company}: ${b.id}`))
+  return arr(master.experience).filter((e) => !arr(v.drop).includes(e.id) && !isEarlier(e, v))
+    .flatMap((e) => pickBullets(e, v).filter((b) => b.draft).map((b) => `${e.company}: ${b.id}`)
+      .concat(v.short && e.short_description && e.short_description_draft && showDescription(e, v) ? [`${e.company}: short description`] : []))
     .concat(v.draft ? [`the type itself (headline or summary)`] : []);
 }
 
@@ -222,13 +255,23 @@ export function validate(master, profile) {
         for (const id of arr(list)) if (!arr(e.bullets).some((b) => b.id === id)) problems.push(`${name}: ${e.company} has no bullet "${id}"`);
       }
     }
-    for (const [key, list] of [["projects", master.projects], ["skills", master.skills], ["certifications", master.certifications]]) {
+    for (const [key, list] of [["projects", master.projects], ["skills", master.skills], ["certifications", master.certifications], ["education", master.education]]) {
       for (const id of arr(v[key])) if (!arr(list).some((x) => x.id === id)) problems.push(`${name}: unknown ${key} id "${id}"`);
     }
     for (const id of arr(v.drop)) if (!exp.some((e) => e.id === id)) problems.push(`${name}: drops an unknown job "${id}"`);
     const d = buildVariant(master, name);
     const words = renderBody(d).replace(/<[^>]+>/g, " ").split(/\s+/).filter(Boolean).length;
-    if (words > 1100) checks.push(`${name}: about ${words} words, likely more than two pages`);
+    if (words > 1000) checks.push(`${name}: about ${words} words, likely more than two pages`);
+    // The first screen decides: a headline for the role, where the candidate is, a portfolio
+    // link a reviewer can open, and a summary short enough to be read.
+    if (!d.header.role?.trim()) checks.push(`${name}: no headline`);
+    if (!d.header.location?.trim()) checks.push(`${name}: no location in the header`);
+    if (!d.header.links.some((l) => /portfolio|website|site/i.test(l.label || "") || /portfolio/i.test(l.url || ""))) checks.push(`${name}: no link labelled Portfolio in the header`);
+    const sw = (d.summary || "").split(/\s+/).filter(Boolean).length;
+    if (sw > 70) checks.push(`${name}: the summary is ${sw} words; two or three lines read better`);
+    for (const e of d.experience) for (const b of e.bullets) {
+      if (b.text.length > 200) checks.push(`${name}: ${e.company}: a ${b.text.length}-character bullet ("${b.text.slice(0, 40)}...")`);
+    }
     const drafts = draftsIn(master, name);
     if (drafts.length) checks.push(`${name}: prints ${drafts.length} draft(s) not yet approved: ${drafts.join("; ")}`);
   }
@@ -312,6 +355,8 @@ function withLinks(text) {
   let out = "", last = 0;
   for (const m of text.matchAll(URL_REGEX)) {
     const raw = m[0];
+    // "Next.js" and "Vue.js" are names, not addresses.
+    if (!/^https?:|\//i.test(raw) && /\.(js|ts|jsx|tsx|css|scss|md|json|py|rb|go)$/i.test(raw.replace(/[.,;:!?)]+$/, ""))) continue;
     const trailing = raw.match(/[.,;:!?)]+$/);
     const clean = raw.slice(0, raw.length - (trailing ? trailing[0].length : 0));
     out += esc(text.slice(last, m.index)) + a(clean, clean, "cv-link-inline");
@@ -338,10 +383,18 @@ function header(h) {
 
 const section = (title, body) => `<section class="cv-section"><h2 class="cv-section-title">${esc(title)}</h2><div class="cv-section-body">${body}</div></section>`;
 
-function experience(e) {
+function experience(e, compact) {
   const dates = formatDateRange(e.start, e.end);
   const company = [e.company, e.location, e.remote ? "Remote" : null].filter(Boolean).join(" · ");
   const bullets = e.bullets.filter((b) => b.text.trim());
+  if (compact) {
+    // One line per job: title and company on the left, dates on the right; no URL line.
+    return `<div class="cv-entry"><div class="cv-entry-head-block"><div class="cv-entry-head"><div class="cv-entry-head-left">` +
+      `<span class="cv-entry-title">${esc(e.role || "Role")}</span>${company ? `<span class="cv-entry-company"> · ${esc(company)}</span>` : ""}</div>` +
+      (dates ? `<div class="cv-entry-dates">${esc(dates)}</div>` : "") + `</div>` +
+      (e.description?.trim() ? `<p class="cv-entry-description">${withLinks(e.description)}</p>` : "") + `</div>` +
+      (bullets.length ? `<ul class="cv-entry-bullets">${bullets.map((b) => `<li>${withLinks(b.text)}</li>`).join("")}</ul>` : "") + `</div>`;
+  }
   return `<div class="cv-entry"><div class="cv-entry-head-block"><div class="cv-entry-head"><div class="cv-entry-head-left">` +
     `<div class="cv-entry-title">${esc(e.role || "Role")}</div><div class="cv-entry-company">${esc(company)}</div>` +
     datesAndUrl(dates, e.url) + `</div></div>` +
@@ -379,7 +432,7 @@ function certification(c) {
 function sectionByKey(key, d) {
   switch (key) {
     case "summary": return d.summary?.trim() ? section("Summary", `<p class="cv-summary">${esc(d.summary)}</p>`) : "";
-    case "experience": return d.experience.length ? section("Experience", d.experience.map(experience).join("")) : "";
+    case "experience": return d.experience.length ? section("Experience", d.experience.map((e) => experience(e, d.layout === "compact")).join("")) : "";
     case "projects": return d.projects.length ? section("Projects", d.projects.map(project).join("")) : "";
     case "education": return d.education.length ? section("Education", d.education.map(education).join("")) : "";
     case "skills": return d.skills.length ? section("Skills", `<div class="cv-skills">${d.skills.map(skillRow).join("")}</div>`) : "";
@@ -394,11 +447,11 @@ function sectionByKey(key, d) {
 
 export function renderBody(d) {
   const hidden = new Set(d.hiddenSections);
-  return `<div class="cv-root">${header(d.header)}${d.sectionOrder.filter((k) => !hidden.has(k)).map((k) => sectionByKey(k, d)).join("")}</div>`;
+  return `<div class="cv-root${d.layout === "compact" ? " cv-compact" : ""}">${header(d.header)}${d.sectionOrder.filter((k) => !hidden.has(k)).map((k) => sectionByKey(k, d)).join("")}</div>`;
 }
 
-export function renderHtml(d) {
-  const css = fs.readFileSync(CSS, "utf8");
+export function renderHtml(d, pageSize = "A4") {
+  const css = fs.readFileSync(CSS, "utf8").replace(/size:\s*A4;/, `size: ${pageSize};`);
   return `<!doctype html>\n<html lang="en">\n  <head>\n    <meta charset="utf-8" />\n    <title>${esc(d.header.full_name || "Resume")}</title>\n` +
     `    <style>${css}</style>\n  </head>\n  <body>${renderBody(d)}</body>\n</html>\n`;
 }
@@ -441,6 +494,22 @@ export function printPdf(htmlFile, outFile) {
   }
 }
 
+// Pages of a printed PDF: Chrome writes one /Type /Page object per page.
+export const pageCount = (file) => (fs.readFileSync(file).toString("latin1").match(/\/Type\s*\/Page[^s]/g) || []).length;
+
+// Print a type on A4 and on US Letter and count the pages: a CV that fits A4 can spill on Letter.
+function measure(d) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "seekter-cv-pages-"));
+  try {
+    return Object.fromEntries(["A4", "Letter"].map((size) => {
+      const html = path.join(dir, `${size}.html`), pdf = path.join(dir, `${size}.pdf`);
+      fs.writeFileSync(html, renderHtml(d, size), "utf8");
+      printPdf(html, pdf);
+      return [size, pageCount(pdf)];
+    }));
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+}
+
 // ---------- commands ----------
 function summary(d) {
   const h = d.header;
@@ -468,7 +537,7 @@ function main() {
   const usage = "node scripts/cv.mjs {list,validate,pdf,html,build,check} <cv.json> [--variant NAME | --all] [--out FILE] [--html FILE] [--drafts]";
   if (!["list", "validate", "pdf", "html", "build", "check"].includes(cmd)) die(`usage: ${usage}`, 2);
   const a = parseArgs(rest, { usage, positional: ["resume"], options: { out: { default: null }, html: { default: null },
-    variant: { default: null }, all: { flag: true }, drafts: { flag: true }, profile: { default: null } } });
+    variant: { default: null }, all: { flag: true }, drafts: { flag: true }, profile: { default: null }, pages: { flag: true } } });
   const raw = readJson(a.resume);
   const master = isMaster(raw) ? raw : null;
   if (cmd === "list" || cmd === "validate") {
@@ -484,6 +553,16 @@ function main() {
   if (cmd === "validate") {
     const prof = path.resolve(a.profile || path.join(ROOT, "profile", "profile.md"));
     const { problems, checks } = validate(master, fs.existsSync(prof) ? fs.readFileSync(prof, "utf8") : "");
+    if (a.pages) {
+      // Two pages is a ceiling, not a target: past it most screeners call a CV too long.
+      for (const [name, v] of Object.entries(master.variants)) {
+        const pages = measure(buildVariant(master, name));
+        const max = v.max_pages ?? 2;
+        const line = `${name}: ${pages.A4} pages on A4, ${pages.Letter} on Letter`;
+        if (pages.A4 > max || pages.Letter > max) problems.push(`${line} (the limit is ${max})`);
+        else console.log("pages: " + line);
+      }
+    }
     for (const c of checks) console.log("check: " + c);
     for (const p of problems) console.log("problem: " + p);
     console.log(`${problems.length} problems, ${checks.length} things to check`);
@@ -521,6 +600,6 @@ function main() {
 }
 
 // Imported by the tests, run as a script by everyone else.
-if (process.argv[1] && fs.realpathSync(process.argv[1]) === fs.realpathSync(fileURLToPath(import.meta.url))) {
+if (isMainModule(import.meta.url)) {
   await runMain(main);
 }

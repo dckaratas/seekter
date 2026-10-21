@@ -174,7 +174,7 @@ Use the profile's **voice** section and **fact bank**. Engine rules that always 
    ```
    node scripts/seekter.mjs add --company "X" --role "Y" --status applied|skipped|pending \
      --url "<posting url>" --source links|freehire|linkedin|<board> --ats ashby --apply-type company-site|easy-apply|email \
-     --location-fit A|B|C --remote-scope "..." --fit 1-5 \
+     --location-fit A|B|C --remote-scope "..." --fit 1-5 --cv <CV type uploaded, e.g. design-system-designer> \
      --why "one line" --notes "reason, confirmation number, salary given, hand-off details" \
      --answers "free-text answers exactly as submitted"
    ```

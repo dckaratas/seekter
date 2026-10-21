@@ -376,3 +376,24 @@
     padding: 0;
   }
 }
+
+/* ---------- Compact layout (scripts/cv.mjs, `layout: "compact"`) ----------
+   Same type and colour; each job on one line and tighter vertical rhythm, so a
+   long career fits two pages without dropping the evidence in its bullets. */
+.cv-compact .cv-header { margin-bottom: 2pt; }
+.cv-compact .cv-name { font-size: 20pt; }
+.cv-compact .cv-tagline { font-size: 11pt; margin-top: 1pt; margin-bottom: 4pt; }
+.cv-compact .cv-contact { font-size: 9.5pt; }
+.cv-compact .cv-contact + .cv-contact { margin-top: 2pt; }
+.cv-root.cv-compact .cv-section { margin-top: 10pt; }
+.cv-root.cv-compact .cv-section-title { font-size: 11pt; padding-bottom: 3pt; margin-bottom: 6pt; border-bottom-width: 1.5px; }
+.cv-compact .cv-summary { line-height: 1.45; }
+.cv-compact .cv-entry { margin-bottom: 7pt; }
+.cv-compact .cv-entry-head { align-items: baseline; }
+.cv-compact .cv-entry-title { font-size: 10.5pt; }
+.cv-compact .cv-entry-company { font-size: 10pt; font-weight: 500; margin-top: 0; }
+.cv-compact .cv-entry-description { margin-top: 2pt; color: #3a3a3a; }
+.cv-compact .cv-entry-bullets { margin-top: 2pt; }
+.cv-compact .cv-entry-bullets li { margin-bottom: 1pt; }
+.cv-root.cv-compact .cv-skill-group { margin-bottom: 4pt; }
+.cv-compact .cv-project { margin-bottom: 4pt; }

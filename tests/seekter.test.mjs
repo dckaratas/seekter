@@ -868,3 +868,55 @@ describe("master CV and its types", async () => {
     assert.ok(checks.some((c) => /systems: prints 1 draft/.test(c)), checks.join("\n"));
   });
 });
+
+describe("fitting a CV type on two pages", async () => {
+  const cv = await import("../scripts/cv.mjs");
+  const m = () => ({
+    header: { full_name: "Jo", location: "Berlin", links: [{ label: "Portfolio", url: "jo.example.com" }] },
+    experience: [
+      { id: "new", company: "Newco", role: "Lead", start: "2025-01", end: "present", description: "A long description of Newco.", short_description: "Newco makes things.", short_description_draft: true,
+        bullets: [{ id: "a", text: "A long version of the first bullet.", short: "First, short.", short_draft: true, tags: ["product"] },
+          { id: "b", text: "Second.", tags: ["product"] }] },
+      { id: "mid", company: "Midco", role: "Designer", start: "2016-03", end: "2018-02", bullets: [{ id: "c", text: "Old.", tags: ["product"] }] },
+      { id: "old", company: "Oldco", role: "Web Designer", start: "2012-01", end: "2016-02", bullets: [] }],
+    skills: [{ id: "s", group: "Design", items: ["A", "B", "C", "D"] }],
+    variants: { t: { role: "Lead", summary: "S.", short: true, tags: ["product"], bullets_per_job: 2, earlier: { before: "2017-01" },
+      skill_items: 2, caps: { new: 1 }, layout: "compact" } },
+  });
+
+  test("short texts print in place of the long ones and count as drafts until approved", () => {
+    const d = cv.buildVariant(m(), "t");
+    assert.equal(d.experience[0].description, "Newco makes things.");
+    assert.deepEqual(d.experience[0].bullets.map((b) => b.text), ["First, short."], "caps limits Newco to one bullet");
+    assert.deepEqual(cv.draftsIn(m(), "t"), ["Newco: a", "Newco: short description"]);
+  });
+
+  test("older jobs fold into one Earlier experience line", () => {
+    const d = cv.buildVariant(m(), "t");
+    const last = d.experience[d.experience.length - 1];
+    assert.equal(last.role, "Earlier experience");
+    assert.match(last.description, /Designer, Midco \(Mar 2016 - Feb 2018\) · Web Designer, Oldco \(Jan 2012 - Feb 2016\)/);
+    assert.equal(d.experience.length, 2);
+  });
+
+  test("skill lists are capped and the compact layout is marked", () => {
+    const d = cv.buildVariant(m(), "t");
+    assert.deepEqual(d.skills[0].items, ["A", "B"]);
+    assert.match(cv.renderBody(d), /class="cv-root cv-compact"/);
+  });
+
+  test("Next.js is a name, not a link", () => {
+    const html = cv.renderBody(cv.mergeResume({ experience: [{ role: "R", company: "C", bullets: ["Built it on Next.js and see example.com/x."] }] }));
+    assert.ok(!html.includes('href="https://Next.js"'));
+    assert.ok(html.includes('href="https://example.com/x"'));
+  });
+});
+
+test("add stores the CV type that went with an application", () => {
+  const tmp = makeRepo("seekter-cvtype-");
+  try {
+    const r = runIn(tmp, "seekter.mjs", ["add", "--company", "Acme", "--role", "Designer", "--url", "https://acme.com/careers/1234567", "--cv", "design-system-designer"]);
+    assert.equal(r.rc, 0, r.err);
+    assert.match(fs.readFileSync(path.join(tmp, r.out.trim().split("\n")[0]), "utf8"), /^cv: design-system-designer$/m);
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+});

@@ -640,6 +640,8 @@ function cmdAdd(a) {
   const meta = { company: a.company, role: a.role, status: a.status, url: a.url, source: a.source, ats: a.ats,
     apply_type: a.apply_type, location_fit: a.location_fit, remote_scope: a.remote_scope, fit: a.fit,
     posted: a.posted, applied: a.applied || (a.status === "applied" ? today : ""), updated: today, job_key: key };
+  // Which CV type went with the application, so outcomes can be read per type later.
+  if (a.cv) meta.cv = a.cv;
   let p;
   if (a.status === "skipped") {
     meta.notes = a.notes || a.why;
@@ -969,7 +971,7 @@ const COMMANDS = {
   add: { fn: cmdAdd, options: {
     company: { required: true }, role: { required: true }, url: s(), status: s({ default: "applied" }),
     source: s(), ats: s(), "apply-type": s(), "location-fit": s(), "remote-scope": s(), fit: s(), posted: s(),
-    applied: s(), date: s(), why: s(), notes: s(), answers: s(), log: s(),
+    applied: s(), date: s(), why: s(), notes: s(), answers: s(), log: s(), cv: s(),
     force: { flag: true }, "no-index": { flag: true } } },
   move: { fn: cmdMove, positional: ["target", "status"], options: { note: s(), answers: s() } },
   list: { fn: cmdList, options: { status: { default: null }, since: { default: null } } },
@@ -981,6 +983,12 @@ const COMMANDS = {
 };
 
 const USAGE = "node scripts/seekter.mjs {" + Object.keys(COMMANDS).join(",") + "} ...";
+
+// True when this file is the script node was asked to run, false when it is imported (a
+// test, another script, `node -e` with arguments that are not files).
+export function isMainModule(url) {
+  try { return !!process.argv[1] && fs.realpathSync(process.argv[1]) === fs.realpathSync(fileURLToPath(url)); } catch { return false; }
+}
 
 export async function runMain(fn) {
   try {
@@ -1006,6 +1014,6 @@ function main(argv) {
   return spec.fn(a);
 }
 
-if (process.argv[1] && fs.realpathSync(process.argv[1]) === fs.realpathSync(fileURLToPath(import.meta.url))) {
+if (isMainModule(import.meta.url)) {
   runMain(() => main(process.argv.slice(2)));
 }
