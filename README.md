@@ -21,9 +21,12 @@ Why it exists, and the principles it is built on, are in [MANIFESTO.md](MANIFEST
 ## Quick start
 
 ```bash
-git clone <this-repo> seekter && cd seekter
-claude            # open Claude Code in the repo
+npx seekter init  # puts the newest release in ./seekter
+cd seekter
+claude            # open Claude Code in the folder
 ```
+
+Or clone it, if you want to send fixes back: `git clone https://github.com/selfishprimate/seekter && cd seekter`.
 
 Then, inside Claude Code:
 
@@ -177,6 +180,7 @@ templates/          profile.md · settings.json · resume/ (the resume styleshee
 scripts/            seekter.mjs · freehire_sweep.mjs · employer_sweep.mjs · import_csv.mjs · resume.mjs · live.mjs · claims.mjs
   providers/        one reader per application system for the employer watchlist
 tests/              tracker CLI tests: node --test tests/seekter.test.mjs
+npm/                the npx seekter installer (published to npm; not part of the kit)
 .github/            leak scan and test workflows · issue and pull request templates
 profile/  applications/  runs/     ← yours, git-ignored
 ```
