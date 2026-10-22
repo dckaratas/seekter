@@ -4,6 +4,88 @@ The version is the git tag; there is no version file. Each release is also on
 [the releases page](https://github.com/selfishprimate/seekter/releases) with the
 same text.
 
+## v0.11.0 — 22 October 2026
+
+The resume has been held to your profile since v0.9.0; now the texts forms
+receive are too. And interview prep, which until now was done by hand in the
+chat, is a command.
+
+### A banned phrase could reach a form, and nothing would say so
+
+Cover letters and free-text answers had rules (numbers only from the fact
+bank, the profile's banned phrases, no sentence sent twice) and a grep, but no
+check. Run over the 149 records with stored answers on 22 Oct: no invented
+number had gone out, but banned phrases had, in five applications.
+
+`node scripts/claims.mjs <file> --posting <file> --url <apply url>` now checks
+a text before it goes into a field, and prints one line per problem:
+
+- `number`: a number that is in neither your profile's facts nor the posting.
+- `voice`: one of your banned phrases, or a long dash.
+- `repeat`: a sentence of eight words or more already sent to another company,
+  read from the records' "Answers submitted" sections. Your profile's own
+  standard answers are meant to repeat and pass.
+
+Dates, years, single digits, links and salary answers are not claims: a salary
+is worked out from your band table, which has its own rule. The run skill
+writes each answer to a file in `runs/` and checks it before filling the field.
+The command exits 1 when anything is found.
+
+### The resume check passed numbers that only appeared in your search settings
+
+`resume.mjs validate` looked a number up anywhere in `profile/profile.md` as
+text. A profile is full of numbers that are not claims (search ids, dates,
+counts of rows), so a short number was almost always somewhere in it: on one
+real profile, a made-up "12" and "40%" both passed. Numbers are now matched
+whole, and only in the sections that state facts: identity, standard answers,
+salary bands and the fact bank. Files those sections name by path
+(`profile/interviews/README.md`, for example) count as facts too, and so does
+the master resume. On the resume it was measured on, the result did not
+change.
+
+### New: `/seekter-interview`
+
+Prepares one stage at one company: a screening, a hiring-manager round, a
+portfolio review, a design or take-home test, an async video, or a final round.
+
+It reads:
+- the tracker record and what your application said: salary, location and
+  sponsorship answers, the resume type, the submitted answers;
+- the posting, after a live check;
+- the company's own pages;
+- your story bank and earlier preps for the same company.
+
+It writes `profile/interviews/<date>-<company>-<stage>.md` in a fixed order:
+- what to know about the company;
+- one answer per ask of the role;
+- "tell me about yourself";
+- likely questions;
+- what only you can decide before the call;
+- questions to ask back;
+- practical checks;
+- an empty "How it went" for your notes afterwards.
+
+The rules come from writing these by hand:
+- **The answer is how you work, the story is the proof.** Every answer opens
+  with your approach, then one story from your story bank.
+- **No new stories.** A story is told in your framing, with no detail or
+  number it does not have, and your corrections to a story beat the fact bank.
+- **The prep never contradicts the application.** A salary you named in the
+  form is where it starts; a changed view becomes a decision for you, not an
+  answer.
+- It never answers the invitation, picks a slot or messages anyone.
+
+The prep is checked with `claims.mjs --no-repeat`, since it is not sent
+anywhere. `/seekter-log` offers the command when you report an invitation.
+
+### Upgrading
+
+Nothing to migrate. Your `profile/`, `applications/` and `runs/` are git-ignored
+and untouched. To get the most from `/seekter-interview`, keep your stories in
+their own file and name it in your profile's fact bank by path, as
+`templates/profile.md` now shows. Without one, the fact bank's story list is
+used.
+
 ## v0.10.0 — 22 October 2026
 
 The fit score has a scale and is given before the form, the report can say
