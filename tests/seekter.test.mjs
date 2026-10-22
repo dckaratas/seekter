@@ -999,6 +999,22 @@ describe("npx seekter init", () => {
     assert.equal(run("init", "--bogus").rc, 2);
   });
 
+  test("the npm README is the repository's, with every link and image made absolute", async () => {
+    // npm shows the README packed into the latest version and resolves nothing relative to the repo.
+    const { npmReadme } = await import("../npm/readme.mjs");
+    const out = npmReadme('<img src="images/cover.jpg">\n\n# Seekter\n\n[![version](https://img.shields.io/x)](https://x)\n\nSee [the manifesto](MANIFESTO.md), ![pic](./images/a.png), [top](#install), [site](https://seekter.dev).\n\n> [!IMPORTANT]\n> Read this.\n');
+    assert.match(out, /src="https:\/\/raw\.githubusercontent\.com\/selfishprimate\/seekter\/main\/images\/cover\.jpg"/);
+    assert.match(out, /\(https:\/\/github\.com\/selfishprimate\/seekter\/blob\/main\/MANIFESTO\.md\)/);
+    assert.match(out, /!\[pic\]\(https:\/\/raw\.githubusercontent\.com\/selfishprimate\/seekter\/main\/images\/a\.png\)/);
+    assert.match(out, /\(#install\)/);
+    assert.match(out, /\(https:\/\/seekter\.dev\)/);
+    assert.doesNotMatch(out, /\[!IMPORTANT\]/);
+    assert.ok(out.indexOf("This package installs Seekter") > out.indexOf("[![version]"), "the note sits under the title block");
+    // The README shipped in npm/ is the generated one, so a publish never carries a stale copy.
+    const shipped = fs.readFileSync(path.join(REPO, "npm", "README.md"), "utf8");
+    assert.equal(shipped, npmReadme(fs.readFileSync(path.join(REPO, "README.md"), "utf8")), "run node npm/readme.mjs");
+  });
+
   test("the package ships only its own files and depends on nothing", () => {
     const pkg = JSON.parse(fs.readFileSync(path.join(REPO, "npm", "package.json"), "utf8"));
     assert.equal(pkg.name, "seekter");
