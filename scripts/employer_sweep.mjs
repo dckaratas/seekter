@@ -4,6 +4,7 @@
 // thread. No browser, no login, no aggregator in between.
 //
 //   node scripts/employer_sweep.mjs          # watchlist from `employers` in profile/settings.json
+//                                            # (one reader per system in scripts/providers/)
 //   node scripts/employer_sweep.mjs --hn     # this month's HN "Who is hiring?" thread
 //
 // Postings are filtered with the profile's title_keep / title_drop and deduped against the
@@ -11,51 +12,30 @@
 import fs from "node:fs";
 import path from "node:path";
 import { ROOT, TODAY, settings, SettingsError, allApps, jobKey, die, runMain, parseArgs } from "./seekter.mjs";
-import { getJson, sleep, pyRegex, htmlUnescape } from "./_shared.mjs";
+import { getJson, getText, sleep, pyRegex, htmlUnescape } from "./_shared.mjs";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const OUT = path.join(ROOT, "runs", TODAY);
 const GAP = 1000; // public APIs, but still one request after another (reference/sources/_core.md)
 let CFG;
 
 const curl = (url) => getJson(url, 30, null);
-const isObj = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
 
-async function greenhouse(slug) {
-  const d = await curl(`https://boards-api.greenhouse.io/v1/boards/${slug}/jobs`);
-  if (!isObj(d) || !("jobs" in d)) return null;
-  return d.jobs.map((j) => ({ title: j.title, location: (j.location || {}).name ?? "",
-    url: `https://job-boards.greenhouse.io/${slug}/jobs/${j.id}` }));
-}
-
-async function ashby(slug) {
-  const d = await curl(`https://api.ashbyhq.com/posting-api/job-board/${slug}`);
-  if (!isObj(d) || !("jobs" in d)) return null;
-  return d.jobs.map((j) => {
-    const locs = [j.location || "", ...(j.secondaryLocations || []).map((s) => s.location ?? "")];
-    const mode = j.workplaceType || "";
-    return { title: j.title, location: locs.filter(Boolean).join(" / ") + (mode ? ` (${mode})` : ""), url: j.jobUrl };
-  });
-}
-
-async function lever(slug) {
-  for (const host of ["api.lever.co", "api.eu.lever.co"]) {
-    const d = await curl(`https://${host}/v0/postings/${slug}?mode=json`);
-    if (Array.isArray(d)) {
-      return d.map((j) => ({ title: j.text, location: (j.categories || {}).location ?? "", url: j.hostedUrl }));
-    }
+// One file per application system in scripts/providers/, named after the `ats` value of a
+// watchlist row (see scripts/providers/README.md). Loaded on demand, so a row naming a system
+// with no file is reported rather than guessed.
+const PROVIDERS = path.join(path.dirname(fileURLToPath(import.meta.url)), "providers");
+const loaded = new Map();
+async function provider(ats) {
+  if (!/^[a-z0-9-]+$/.test(ats || "")) return null;
+  if (!loaded.has(ats)) {
+    const file = path.join(PROVIDERS, `${ats}.mjs`);
+    loaded.set(ats, fs.existsSync(file) ? (await import(pathToFileURL(file).href)).default : null);
   }
-  return null;
+  return loaded.get(ats);
 }
-
-async function workable(slug) {
-  const d = await curl(`https://apply.workable.com/api/v1/widget/accounts/${slug}`);
-  if (!isObj(d) || !("jobs" in d)) return null;
-  return d.jobs.map((j) => ({ title: j.title,
-    location: [j.city, j.country, j.telecommuting ? "remote" : ""].filter(Boolean).join(" "),
-    url: `https://apply.workable.com/${slug}/j/${j.shortcode}` }));
-}
-
-const ATS = { greenhouse, ashby, lever, workable };
+const net = () => ({ json: (url, post = null) => getJson(url, 30, null, post), text: (url) => getText(url, 30),
+  queries: (CFG.freehire || {}).queries || [] });
 
 function titleFilters() {
   const keep = CFG.title_keep || "";
@@ -79,8 +59,8 @@ async function employers() {
   const out = [], problems = [];
   let seen = 0;
   for (const [i, e] of watch.entries()) {
-    const fetchBoard = ATS[e.ats ?? ""];
-    const jobs = fetchBoard ? await fetchBoard(e.slug ?? "") : null;
+    const fetchBoard = await provider(e.ats ?? "");
+    const jobs = fetchBoard ? await fetchBoard(e.slug ?? "", net()) : null;
     if (jobs === null) problems.push(`${e.name}: no board at ${e.ats}:${e.slug}`);
     else {
       seen += jobs.length;

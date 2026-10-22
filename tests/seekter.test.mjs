@@ -203,6 +203,8 @@ function makeRepo(prefix, scripts = ["seekter.mjs"]) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
   fs.mkdirSync(path.join(tmp, "scripts"));
   for (const s of scripts) fs.copyFileSync(path.join(SCRIPTS, s), path.join(tmp, "scripts", s));
+  // The employer sweep reads one file per application system from scripts/providers/.
+  if (scripts.includes("employer_sweep.mjs") || scripts.includes("live.mjs")) fs.cpSync(path.join(SCRIPTS, "providers"), path.join(tmp, "scripts", "providers"), { recursive: true });
   fs.mkdirSync(path.join(tmp, "applications"));
   return tmp;
 }
@@ -410,6 +412,25 @@ describe("tracker", () => {
     assert.match(r.out, /same_company_days/);
   });
 
+  test("check catches the same posting under a shortened URL or the same posting id", () => {
+    add({ company: "Medco", role: "Senior UI Designer", status: "pending",
+      url: "https://careers.medco.example/global/en/job/P-100931/Senior-UI-Designer-for-medical-software-products" });
+    add({ company: "Wdco", role: "Lead Product Designer", status: "applied",
+      url: "https://wdco.wd5.myworkdayjobs.com/en-US/External/job/Hungary--Budapest/Lead-Product-Designer_261413-1" });
+    // The slug cut short by whoever passed the link on.
+    let r = cli("check", "https://careers.medco.example/global/en/job/P-100931/Senior-UI-Designer-for-medical-software-");
+    assert.equal(r.rc, 1);
+    assert.match(r.out, /DUPLICATE: .*same posting under another URL: a shortened copy/);
+    // The same requisition id behind a different path.
+    r = cli("check", "https://wdco.wd5.myworkdayjobs.com/External/job/Budapest/Lead-Product-Designer_261413-1/apply");
+    assert.equal(r.rc, 1);
+    assert.match(r.out, /the same posting id \(261413\)/);
+    // A different id on the same site is a different posting.
+    assert.equal(cli("check", "https://careers.medco.example/global/en/job/P-100932/Senior-UI-Designer").rc, 0);
+    r = cliIn("https://careers.medco.example/global/en/job/P-100931/Senior-UI-Designer-for-medical\n", "check-many");
+    assert.match(r.out, /^DUP .*a shortened copy/m);
+  });
+
   test("check reads a bare number as a LinkedIn id", () => {
     // Measured 4 Oct: `check <a bare LinkedIn id>` keyed the number as is and passed a
     // tracked LinkedIn job as new; only `check-many` normalised it.
@@ -554,6 +575,32 @@ describe("tracker", () => {
     assert.equal(s.pending, 1);
     assert.equal(s.skipped, 1);
     assert.equal(s.response_rate, 0.5);
+  });
+
+  test("stats --by groups sent applications and counts an interview the log remembers", () => {
+    add({ company: "A", role: "Senior Product Designer (Growth)", url: "https://a.com/careers/1111111", status: "applied", ats: "ashby" });
+    add({ company: "B", role: "Product Designer - AI", url: "https://b.com/careers/2222222", status: "applied", ats: "ashby" });
+    add({ company: "C", role: "UX Designer", url: "https://c.com/careers/3333333", status: "rejected", ats: "lever" });
+    add({ company: "D", role: "Product Designer", url: "https://d.com/careers/4444444", status: "skipped", notes: "sector" });
+    assert.equal(cli("move", "https://b.com/careers/2222222", "interviewing").rc, 0);
+    assert.equal(cli("move", "https://b.com/careers/2222222", "rejected").rc, 0);
+    let r = cli("stats", "--by", "ats");
+    assert.equal(r.rc, 0);
+    assert.match(r.out, /\| ashby \| 2 \| 1 \| 50% \| 1 \| 50% \|/);
+    assert.match(r.out, /\| lever \| 1 \| 1 \| 100% \| 0 \| 0% \|/);
+    assert.match(r.out, /\| \*\*all\*\* \| 3 \| 2 \| 66\.7% \| 1 \| 33\.3% \|/); // the skip is not sent
+    r = cli("stats", "--by", "title,seniority");
+    assert.match(r.out, /\| product designer · senior \| 1 \|/);
+    assert.match(r.out, /\| product designer · none \| 1 \|/);
+  });
+
+  test("add takes a fit score from 1 to 5 and refuses anything else", () => {
+    add({ company: "A", role: "D", url: "https://a.com/careers/1111111", status: "applied", fit: "4" });
+    for (const bad of ["8", "0", "3.5", "good fit"]) {
+      const r = cli("add", "--company", "B", "--role", "D", "--url", "https://b.com/careers/2222222", "--status", "applied", "--fit", bad);
+      assert.equal(r.rc, 1, bad);
+      assert.match(r.err, /fit must be a whole number from 1 to 5/);
+    }
   });
 
   test("stats response rate is null rather than zero when nothing was sent", () => {
@@ -722,10 +769,86 @@ describe("employer sweep", () => {
     assert.match(r.out, /problem: Odd: no board at taleo:odd/);
   });
 
+  test("each application system reads its own public board", () => {
+    const rss = `<?xml version="1.0"?><rss version="2.0" xmlns:tt="https://teamtailor.com/locations"><channel>
+      <item><title>Senior Product Designer</title><link>https://jobs.tt-co.example/jobs/1-senior-product-designer</link><remoteStatus>hybrid</remoteStatus>
+      <tt:locations><tt:location><tt:name>Copenhagen, Denmark</tt:name></tt:location></tt:locations></item>
+      <item><title>Accountant</title><link>https://jobs.tt-co.example/jobs/2-accountant</link><remoteStatus>none</remoteStatus></item>
+      </channel></rss>`;
+    const xml = `<?xml version="1.0"?><workzag-jobs><position><id>77</id><office>Berlin</office><additionalOffice>Remote</additionalOffice>
+      <name>Product Designer &amp; Researcher</name></position></workzag-jobs>`;
+    http = fakeHttp(tmp, [
+      ["api.smartrecruiters.com/v1/companies/SrCo/postings", JSON.stringify({ totalFound: 1, content: [{ id: "744", name: "Product Designer ", location: { city: "Munich", country: "de", remote: true } }] })],
+      ["srco.recruitee.com/api/offers", JSON.stringify({ offers: [{ title: "UX Designer", location: "Amsterdam", remote: false, careers_url: "https://srco.recruitee.com/o/ux-designer" }] })],
+      ["pco.jobs.personio.de/xml", xml],
+      ["jobs.tt-co.example/jobs.rss", rss],
+      ["wdco.wd3.myworkdayjobs.com/wday/cxs/wdco/External/jobs", JSON.stringify({ total: 1, jobPostings: [{ title: "Lead Product Designer", locationsText: "Hungary > Budapest", remoteType: "Hybrid", externalPath: "/job/Budapest/Lead-Product-Designer_1" }] })],
+    ], "{}");
+    const r = sweep([
+      { name: "Sr", ats: "smartrecruiters", slug: "SrCo" }, { name: "Re", ats: "recruitee", slug: "srco" },
+      { name: "Pe", ats: "personio", slug: "pco" }, { name: "Tt", ats: "teamtailor", slug: "jobs.tt-co.example" },
+      { name: "Wd", ats: "workday", slug: "wdco.wd3/External" }]);
+    assert.equal(r.rc, 0, r.err);
+    assert.match(r.out, /5 boards, 6 postings → 5 candidates/);
+    assert.match(r.out, /Sr \| Product Designer \| Munich DE remote \| https:\/\/jobs\.smartrecruiters\.com\/SrCo\/744/);
+    assert.match(r.out, /Re \| UX Designer \| Amsterdam \| https:\/\/srco\.recruitee\.com\/o\/ux-designer/);
+    assert.match(r.out, /Pe \| Product Designer & Researcher \| Berlin \/ Remote \| https:\/\/pco\.jobs\.personio\.de\/job\/77/);
+    assert.match(r.out, /Tt \| Senior Product Designer \| Copenhagen, Denmark \/ remote: hybrid/);
+    assert.match(r.out, /Wd \| Lead Product Designer \| Hungary > Budapest · Hybrid \| https:\/\/wdco\.wd3\.myworkdayjobs\.com\/en-US\/External\/job\/Budapest\/Lead-Product-Designer_1/);
+    assert.doesNotMatch(r.out, /Accountant/);
+    assert.doesNotMatch(r.out, /problem:/);
+  });
+
+  test("a Workday slug in the wrong shape is reported, not fetched", () => {
+    const r = sweep([{ name: "Wd", ats: "workday", slug: "https://wdco.wd3.myworkdayjobs.com/External" }]);
+    assert.match(r.out, /problem: Wd: no board at workday:/);
+    assert.ok(!http.urls().some((u) => u.includes("myworkdayjobs")));
+  });
+
   test("an empty watchlist stops the sweep", () => {
     const r = sweep([]);
     assert.notEqual(r.rc, 0);
     assert.match(r.err, /No employers/);
+  });
+});
+
+describe("live check", () => {
+  // Each system's own answer for one posting, from a fake network that also gives status codes.
+  let tmp, http;
+  beforeEach(() => {
+    tmp = makeRepo("seekter-live-", ["seekter.mjs", "_shared.mjs", "live.mjs"]);
+    http = fakeHttp(tmp, [
+      ["boards-api.greenhouse.io/v1/boards/acme/jobs/111", { status: 200, body: '{"id":111}' }],
+      ["boards-api.greenhouse.io/v1/boards/acme/jobs/222", { status: 404, body: '{"status":404,"error":"Job not found"}' }],
+      ["jobs.ashbyhq.com/acme/11111111-1111-1111-1111-111111111111", { status: 200, body: 'x "posting":{"id":"11111111"} x' }],
+      ["jobs.ashbyhq.com/acme/22222222-2222-2222-2222-222222222222", { status: 200, body: 'x "posting":null x' }],
+      ["jobs.acme.example/jobs.rss", '<?xml version="1.0"?><rss version="2.0"></rss>'],
+      ["jobs.acme.example/jobs/9-gone", { status: 404, body: "" }],
+      ["careers.other.example/jobs/9-gone", { status: 404, body: "" }],
+    ], { status: 500, body: "" });
+  });
+  afterEach(() => fs.rmSync(tmp, { recursive: true, force: true }));
+
+  test("open, closed and unknown come from the posting's own system, never from LinkedIn", () => {
+    const r = runIn(tmp, "live.mjs", [
+      "https://job-boards.greenhouse.io/acme/jobs/111", "https://job-boards.greenhouse.io/acme/jobs/222",
+      "https://jobs.ashbyhq.com/acme/11111111-1111-1111-1111-111111111111", "https://jobs.ashbyhq.com/acme/22222222-2222-2222-2222-222222222222",
+      "https://jobs.acme.example/jobs/9-gone", "https://careers.other.example/jobs/9-gone",
+      "https://www.linkedin.com/jobs/view/4479615109/"], { env: http.env });
+    assert.equal(r.rc, 0, r.err);
+    assert.match(r.out, /^OPEN +https:\/\/job-boards\.greenhouse\.io\/acme\/jobs\/111 +\(greenhouse\)/m);
+    assert.match(r.out, /^CLOSED +https:\/\/job-boards\.greenhouse\.io\/acme\/jobs\/222/m);
+    assert.match(r.out, /^OPEN +https:\/\/jobs\.ashbyhq\.com\/acme\/1111/m);
+    assert.match(r.out, /^CLOSED +https:\/\/jobs\.ashbyhq\.com\/acme\/2222/m);
+    assert.match(r.out, /^CLOSED +https:\/\/jobs\.acme\.example\/jobs\/9-gone +\(teamtailor\)/m);
+    // A 404 on a site that is not Teamtailor says nothing, so it stays unknown.
+    assert.match(r.out, /^UNKNOWN +https:\/\/careers\.other\.example/m);
+    assert.match(r.out, /^UNKNOWN +https:\/\/www\.linkedin\.com.*never called/m);
+    assert.ok(!http.urls().some((u) => u.includes("linkedin")));
+  });
+
+  test("a single closed posting exits 3", () => {
+    assert.equal(runIn(tmp, "live.mjs", ["https://job-boards.greenhouse.io/acme/jobs/222"], { env: http.env }).rc, 3);
   });
 });
 

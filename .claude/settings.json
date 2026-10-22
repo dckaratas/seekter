@@ -6,6 +6,7 @@
       "Bash(node scripts/employer_sweep.mjs:*)",
       "Bash(node scripts/import_csv.mjs:*)",
       "Bash(node scripts/resume.mjs:*)",
+      "Bash(node scripts/live.mjs:*)",
       "Bash(curl -sS:*)",
       "Read(./profile/**)",
       "Read(./reference/**)",
