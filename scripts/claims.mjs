@@ -2,7 +2,7 @@
 // Holds a text a form is about to receive (a cover letter, a free-text answer) to the profile,
 // the way `resume.mjs validate` holds the resume to it. Node 20+, no packages.
 //
-//   node scripts/claims.mjs <file> [<file> ...] [--posting <file>] [--url <apply url>]
+//   node scripts/claims.mjs <file> [<file> ...] [--posting <file>] [--url <apply url>] [--no-repeat]
 //   node scripts/claims.mjs - < answer.txt
 //
 // Three checks, one line each:
@@ -16,6 +16,7 @@
 //   repeat  a sentence of eight words or more already sent to another company, from the
 //           records' "Answers submitted" sections. Sentences that are in the profile (its standard
 //           answers) are meant to repeat and pass. --url leaves out the record of this posting.
+//           --no-repeat skips this check, for a text that is not sent anywhere (interview prep).
 //
 // Exit code 1 when anything is found, 0 when the text is clean, 2 on a usage error.
 import fs from "node:fs";
@@ -46,7 +47,7 @@ const AMOUNT = "\\d[\\d,.]*\\s?[km]?";
 export function withoutSalary(text) {
   return String(text ?? "")
     .replace(new RegExp(`${CURRENCY}\\s?${AMOUNT}(?:\\s?(?:-|–|to)\\s?${CURRENCY}?\\s?${AMOUNT})?`, "g"), " ")
-    .replace(new RegExp(`${AMOUNT}(?:\\s?(?:-|–|to)\\s?${AMOUNT})?\\s?\\(?${CURRENCY}\\b`, "g"), " ")
+    .replace(new RegExp(`${AMOUNT}(?:\\s?(?:-|–|to)\\s?${AMOUNT})?\\s?(?:\\(?${CURRENCY}\\b|(?:euros?|dollars?|pounds?|kroner|kronor|zloty|lira)\\b)`, "g"), " ")
     .split(/(\n|\||;|(?<=[.!?])\s+)/).map((part) => /salary|compensation|pay expectation|(hourly|daily|day|monthly) rate/i.test(part) ? part.replace(/\d/g, " ") : part).join("");
 }
 
@@ -126,15 +127,15 @@ async function main() {
     else if (argv[i].startsWith("--")) rest.push(argv[i]);
     else files.push(argv[i]);
   }
-  const a = parseArgs(rest, { usage: "node scripts/claims.mjs <file|-> [...] [--posting <file>] [--url <apply url>]",
-    options: { posting: { default: null }, url: { default: null } } });
+  const a = parseArgs(rest, { usage: "node scripts/claims.mjs <file|-> [...] [--posting <file>] [--url <apply url>] [--no-repeat]",
+    options: { posting: { default: null }, url: { default: null }, "no-repeat": { flag: true } } });
   if (!files.length) files.push("-");
   const profileFile = path.join(ROOT, "profile", "profile.md");
   if (!fs.existsSync(profileFile)) die("profile/profile.md is missing (run /seekter-init)", 2);
   const profile = fs.readFileSync(profileFile, "utf8");
   const sources = factSources(profile);
   const posting = a.posting ? readInput(a.posting) : "";
-  const sent = sentBefore(a.url ? jobKey(a.url) : null);
+  const sent = a.no_repeat ? new Map() : sentBefore(a.url ? jobKey(a.url) : null);
   let total = 0;
   for (const f of files) {
     const text = readInput(f);

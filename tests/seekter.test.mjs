@@ -890,7 +890,7 @@ describe("answer check", () => {
 
   test("dates, years, links, salary answers and the posting's own numbers are not claims", () => {
     const text = "Available from 3 Nov 2026, or 2026-11-03 at 10:00. Since 2015. See https://example.com/job/123456. " +
-      "Salary: EUR 72,000 gross per year (GBP 3,900 a month). The 5-minute video and your 250 stores.";
+      "Salary: EUR 72,000 gross per year (GBP 3,900 a month), or 55,000 to 60,000 euros. The 5-minute video and your 250 stores.";
     const without = check(text);
     assert.equal(without.rc, 1);
     assert.match(without.out, /"250"/);
@@ -918,6 +918,8 @@ describe("answer check", () => {
     assert.equal((r.out.match(/repeat/g) || []).length, 1, "the standard answer from the profile is meant to repeat");
     // Checking the answers of the same posting again is not a repeat.
     assert.equal(check(sent, "--url", "https://jobs.example.com/acme/1").rc, 0);
+    // A prep text is not sent anywhere, so it may reuse what the application said.
+    assert.equal(check(sent, "--no-repeat").rc, 0);
   });
 });
 

@@ -41,6 +41,7 @@ Requirements: [Claude Code](https://docs.claude.com/en/docs/claude-code) (a paid
 | `/seekter-init` | Interviews you and writes your profile: contact details, resumes, target roles, where you can work, salary bands, standard form answers, sectors you won't touch, a fact bank for free-text answers, your writing voice, and the search queries. Resumable. Can import an existing tracker from a Notion/Sheets CSV. |
 | `/seekter-run` | The daily run. Four sources in a fixed order (links you bring, freehire API, LinkedIn, other boards), filtering, dedup, form filling, tracker update, and a report with a per-source table. Applies without asking when a posting fits; stops only for things only you can decide. Every posting gets a 1-5 fit score before its form, which orders the queue and never removes anything. |
 | `/seekter-log` | Records what happened next: rejections, interviews, offers, applications you made by hand, or a sweep of your inbox. |
+| `/seekter-interview` | Prepares you for the next round: a screening, a hiring-manager call, a portfolio review, a test or an async video. Reads the posting, what your application said and the company's own site, answers each of the role's asks with how you work first and one of your own stories second, and lists what only you can decide (the salary to name, relocation timing). Never invents a story or a number, and never answers the invitation. |
 | `/seekter-report` | Funnel, replies and interviews broken down by source, apply path, form system, location track, title, fit score and resume type (`stats --by`), top skip reasons, open hand-offs, and at most two suggested changes. |
 | `/seekter-git` | Ships the kit. Branches, commits and pushes the shareable files (skills, references, scripts) after a run has taught Seekter something, and scans the diff for your personal details first so they never leave your machine. Your profile, applications and runs are never committed. Once you have merged, it can also cut the release. |
 
@@ -51,6 +52,7 @@ Requirements: [Claude Code](https://docs.claude.com/en/docs/claude-code) (a paid
 | Once | `/seekter-init` | Your resume file(s). Takes 20–30 minutes; you can stop and resume. |
 | Every working day | `/seekter-run` | Chrome open with the Claude in Chrome extension and your webmail logged in. Any links you collected go in `profile/links.txt` or the chat. |
 | When a company replies, or weekly | `/seekter-log` | For an inbox sweep: your webmail open and logged in, in the same Chrome. |
+| Before an interview | `/seekter-interview` | The company's name, and the stage and date if the invitation is not in your inbox. Your stories in `profile/interviews/README.md` make it much better. |
 | Weekly | `/seekter-report` | Nothing. It reads the tracker only. |
 | After a run changes a skill or a reference | `/seekter-git` | A git remote you can push to. Optional: `gh` for the pull request. |
 
@@ -169,7 +171,7 @@ The same rules hold for what a form receives. Before a cover letter or a free-te
 ## What's in the repo
 
 ```
-.claude/skills/     seekter-init · seekter-run · seekter-log · seekter-report · seekter-git
+.claude/skills/     seekter-init · seekter-run · seekter-log · seekter-interview · seekter-report · seekter-git
 reference/          sources/ (one file per job source) · ats/ (one file per application form system); each has a _core.md read first
 templates/          profile.md · settings.json · resume/ (the resume stylesheet, an example master resume and an example resume in the site's format)
 scripts/            seekter.mjs · freehire_sweep.mjs · employer_sweep.mjs · import_csv.mjs · resume.mjs · live.mjs · claims.mjs
