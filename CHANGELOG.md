@@ -4,6 +4,84 @@ The version is the git tag; there is no version file. Each release is also on
 [the releases page](https://github.com/selfishprimate/seekter/releases) with the
 same text.
 
+## v0.12.0 — 22 October 2026
+
+A security fix, an npm package, and four holes found by reading Seekter against
+career-ops, a larger job-search kit for AI coding CLIs. **Update if you run
+v0.11.0 or earlier:** the first item can run a command on your machine.
+
+### Text from a posting could run as a shell command
+
+The run logged each application by typing the posting's company, its role
+and your free-text answers into `seekter.mjs add --company "…" --role "…"
+--answers "…"`. Inside double quotes, a role named `$(…)` or holding a
+backtick runs as a command, and a heredoc is no fix, because a line equal to
+its delimiter closes it early. A posting written to do this was never seen,
+but nothing stopped one.
+
+Every `seekter.mjs` command now also takes `--json FILE`: the arguments as one
+JSON object, which the agent writes with its file tool. The run, log and
+interview skills pass text from a page or a mail only that way, and the live
+check reads its URLs from a file. Tested with a role holding `$(touch …)`: it
+was stored verbatim and nothing ran.
+
+### New: `npx seekter init`
+
+The kit is on npm as `seekter`. `npx seekter init [folder]` downloads the
+newest release from GitHub and unpacks it into a new or empty folder, checks
+that it is a Seekter release with nothing but placeholders under `profile/`,
+`applications/` and `runs/`, and prints the responsibilities from
+DISCLAIMER.md and the next steps. It never writes into a folder that holds
+something, and removes what it unpacked if anything fails. The package has
+no dependencies and no install scripts; the repository still has no
+`package.json` at its root. Cloning and seekter.zip work as before.
+
+### The answer check let a made-up money figure through
+
+`claims.mjs` (v0.11.0) skipped every amount with a currency as if it were a
+salary answer, and read "$2M" as a bare 2, which is too short to check. So
+"grew revenue from $2M to $5M" passed. Now only a sentence or form field that
+names salary, pay, a rate or a band is skipped, and `2M`, `30k` and
+`1.5 million` are numbers. The resume validator shares the change.
+
+### A LinkedIn link with a title in it slipped past dedup
+
+Share links and job-alert mails write `/jobs/view/<title>-<id>`. That form got
+a path key instead of `linkedin:<id>`, so the same posting reached once by id
+and once by a share link looked like two jobs. Stored keys do not change.
+
+### The live check called some open postings closed
+
+Lever answers 404 on its public API for a confidential posting that is still
+open, and the check took the 404 as closed. A 404 now asks the hosted job
+page. SmartRecruiters' `active: false`, Workday's withdrawn-posting answer
+(403 with `S22`) and Workable's job state are read as well.
+
+### `stats --by` counted applications still waiting as unanswered
+
+Every sent application was in the denominator, including those sent days
+ago, and a group of one got a percentage. Rates are now over decided
+applications (a reply, or closed); the rest are "in flight" in their own
+column; a group with fewer than five decided shows counts only (`--floor`
+changes it); and a closing line names the highest and lowest group. On one
+tracker, 190 of 561 sent applications were in flight on the day.
+
+### Smaller
+
+- The README and the v0.9.0 notes pointed at a resume editor on seekter.dev
+  that only invited accounts can open. The links are gone.
+- The npm page shows this README (`node npm/sync-readme.mjs` before a publish),
+  with its links and images made absolute.
+- Test values that were one candidate's real salary figures and a real
+  posting id are made-up ones now.
+
+### Upgrading
+
+Nothing to migrate. Your `profile/`, `applications/` and `runs/` are
+git-ignored and untouched, and no stored dedup key changes. If you run your
+own scripts against `seekter.mjs`, prefer `--json` for any value that came
+from a page. `stats --by` prints one more column.
+
 ## v0.11.0 — 22 October 2026
 
 The resume has been held to your profile since v0.9.0; now the texts forms
