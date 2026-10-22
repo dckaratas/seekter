@@ -12,3 +12,14 @@ export default async function board(slug, net) {
       url: tag(b, "link") };
   });
 }
+
+// Is one posting still open? The job page answers 404 once it closes. Any host can be a
+// Teamtailor site, so the host has to serve /jobs.rss first; on any other site a 404 would say
+// nothing about Teamtailor.
+export async function live(url, net) {
+  const m = url.match(/\/\/([^/]+)\/jobs\/(\d+)-[^?#]*/i);
+  if (!m) return null;
+  if (!/<rss/.test(await net.text(`https://${m[1]}/jobs.rss`))) return null;
+  const r = await net.status(`https://${m[0].slice(2)}`);
+  return r.status === 200 ? "open" : r.status === 404 ? "closed" : null;
+}

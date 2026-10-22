@@ -170,7 +170,7 @@ Two pages is the ceiling, checked on A4 and US Letter (`validate --pages`). Leng
 .claude/skills/     seekter-init · seekter-run · seekter-log · seekter-report · seekter-git
 reference/          sources/ (one file per job source) · ats/ (one file per application form system); each has a _core.md read first
 templates/          profile.md · settings.json · resume/ (the resume stylesheet, an example master resume and an example resume in the site's format)
-scripts/            seekter.mjs · freehire_sweep.mjs · employer_sweep.mjs · import_csv.mjs · resume.mjs
+scripts/            seekter.mjs · freehire_sweep.mjs · employer_sweep.mjs · import_csv.mjs · resume.mjs · live.mjs
   providers/        one reader per application system for the employer watchlist
 tests/              tracker CLI tests: node --test tests/seekter.test.mjs
 .github/            leak scan and test workflows · issue and pull request templates

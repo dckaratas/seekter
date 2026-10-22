@@ -204,7 +204,7 @@ function makeRepo(prefix, scripts = ["seekter.mjs"]) {
   fs.mkdirSync(path.join(tmp, "scripts"));
   for (const s of scripts) fs.copyFileSync(path.join(SCRIPTS, s), path.join(tmp, "scripts", s));
   // The employer sweep reads one file per application system from scripts/providers/.
-  if (scripts.includes("employer_sweep.mjs")) fs.cpSync(path.join(SCRIPTS, "providers"), path.join(tmp, "scripts", "providers"), { recursive: true });
+  if (scripts.includes("employer_sweep.mjs") || scripts.includes("live.mjs")) fs.cpSync(path.join(SCRIPTS, "providers"), path.join(tmp, "scripts", "providers"), { recursive: true });
   fs.mkdirSync(path.join(tmp, "applications"));
   return tmp;
 }
@@ -809,6 +809,46 @@ describe("employer sweep", () => {
     const r = sweep([]);
     assert.notEqual(r.rc, 0);
     assert.match(r.err, /No employers/);
+  });
+});
+
+describe("live check", () => {
+  // Each system's own answer for one posting, from a fake network that also gives status codes.
+  let tmp, http;
+  beforeEach(() => {
+    tmp = makeRepo("seekter-live-", ["seekter.mjs", "_shared.mjs", "live.mjs"]);
+    http = fakeHttp(tmp, [
+      ["boards-api.greenhouse.io/v1/boards/acme/jobs/111", { status: 200, body: '{"id":111}' }],
+      ["boards-api.greenhouse.io/v1/boards/acme/jobs/222", { status: 404, body: '{"status":404,"error":"Job not found"}' }],
+      ["jobs.ashbyhq.com/acme/11111111-1111-1111-1111-111111111111", { status: 200, body: 'x "posting":{"id":"11111111"} x' }],
+      ["jobs.ashbyhq.com/acme/22222222-2222-2222-2222-222222222222", { status: 200, body: 'x "posting":null x' }],
+      ["jobs.acme.example/jobs.rss", '<?xml version="1.0"?><rss version="2.0"></rss>'],
+      ["jobs.acme.example/jobs/9-gone", { status: 404, body: "" }],
+      ["careers.other.example/jobs/9-gone", { status: 404, body: "" }],
+    ], { status: 500, body: "" });
+  });
+  afterEach(() => fs.rmSync(tmp, { recursive: true, force: true }));
+
+  test("open, closed and unknown come from the posting's own system, never from LinkedIn", () => {
+    const r = runIn(tmp, "live.mjs", [
+      "https://job-boards.greenhouse.io/acme/jobs/111", "https://job-boards.greenhouse.io/acme/jobs/222",
+      "https://jobs.ashbyhq.com/acme/11111111-1111-1111-1111-111111111111", "https://jobs.ashbyhq.com/acme/22222222-2222-2222-2222-222222222222",
+      "https://jobs.acme.example/jobs/9-gone", "https://careers.other.example/jobs/9-gone",
+      "https://www.linkedin.com/jobs/view/4479615109/"], { env: http.env });
+    assert.equal(r.rc, 0, r.err);
+    assert.match(r.out, /^OPEN +https:\/\/job-boards\.greenhouse\.io\/acme\/jobs\/111 +\(greenhouse\)/m);
+    assert.match(r.out, /^CLOSED +https:\/\/job-boards\.greenhouse\.io\/acme\/jobs\/222/m);
+    assert.match(r.out, /^OPEN +https:\/\/jobs\.ashbyhq\.com\/acme\/1111/m);
+    assert.match(r.out, /^CLOSED +https:\/\/jobs\.ashbyhq\.com\/acme\/2222/m);
+    assert.match(r.out, /^CLOSED +https:\/\/jobs\.acme\.example\/jobs\/9-gone +\(teamtailor\)/m);
+    // A 404 on a site that is not Teamtailor says nothing, so it stays unknown.
+    assert.match(r.out, /^UNKNOWN +https:\/\/careers\.other\.example/m);
+    assert.match(r.out, /^UNKNOWN +https:\/\/www\.linkedin\.com.*never called/m);
+    assert.ok(!http.urls().some((u) => u.includes("linkedin")));
+  });
+
+  test("a single closed posting exits 3", () => {
+    assert.equal(runIn(tmp, "live.mjs", ["https://job-boards.greenhouse.io/acme/jobs/222"], { env: http.env }).rc, 3);
   });
 });
 

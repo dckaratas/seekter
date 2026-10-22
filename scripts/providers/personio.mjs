@@ -13,3 +13,11 @@ export default async function board(slug, net) {
   }
   return null;
 }
+
+// Is one posting still open? The job page answers 404 once the position is closed.
+export async function live(url, net) {
+  const m = url.match(/\/\/([\w-]+)\.jobs\.personio\.(de|com)\/job\/(\d+)/i);
+  if (!m) return null;
+  const r = await net.status(`https://${m[1]}.jobs.personio.${m[2]}/job/${m[3]}`);
+  return r.status === 200 ? "open" : r.status === 404 ? "closed" : null;
+}

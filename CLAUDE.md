@@ -13,6 +13,7 @@ Seekter is a job-search agent that runs inside Claude Code: it searches job sour
 | `scripts/seekter.mjs` | Tracker CLI: check, check-many, add, move, list, index, stats (`--by <field>` breaks sent, replies and interviews down by source, form system, title, fit…) | tracked |
 | `scripts/freehire_sweep.mjs` | Step 1 API sweep with the profile's queries | tracked |
 | `scripts/employer_sweep.mjs` | Step 1 API sweep of the employer watchlist (`employers` in settings) and, with `--hn`, the monthly HN "Who is hiring?" thread | tracked |
+| `scripts/live.mjs` | Is a posting still open? Asks its own system right before a form: OPEN, CLOSED or UNKNOWN | tracked |
 | `scripts/providers/` | One file per application system the watchlist reads (Greenhouse, Ashby, Lever, Workable, SmartRecruiters, Recruitee, Personio, Teamtailor, Workday); the contract is in its README | tracked |
 | `scripts/resume.mjs` | Resume engine: one master resume (`profile/resume/json/resume.json`: facts, a tagged bullet pool, resume types) printed per type into `profile/resume/` by the local Chrome; `validate` holds it to the profile. Look in `templates/resume/resume.css` | tracked |
 | `scripts/import_csv.mjs` | One-off import of an existing tracker (Notion/Sheets CSV) | tracked |

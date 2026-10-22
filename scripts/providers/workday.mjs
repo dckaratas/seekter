@@ -24,3 +24,13 @@ export default async function board(slug, net) {
   }
   return reachable ? [...seen.values()] : null;
 }
+
+// Is one posting still open? The career site's own job endpoint answers 404 "not found" once
+// the posting is gone. The URL carries tenant, site and the posting's path.
+export async function live(url, net) {
+  const m = url.match(/\/\/([\w-]+)\.(wd\d+)\.myworkdayjobs\.com\/(?:[a-z]{2}-[A-Z]{2}\/)?([\w-]+)(\/job\/[^?#]+?)(?:\/apply[^?#]*)?(?:[?#]|$)/);
+  if (!m) return null;
+  const [, tenant, wd, site, jobPath] = m;
+  const r = await net.status(`https://${tenant}.${wd}.myworkdayjobs.com/wday/cxs/${tenant}/${site}${jobPath}`);
+  return r.status === 200 ? "open" : r.status === 404 ? "closed" : null;
+}

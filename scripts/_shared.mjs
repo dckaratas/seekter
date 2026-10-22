@@ -5,25 +5,30 @@ import { die } from "./seekter.mjs";
 export const UA = "Mozilla/5.0 seekter";
 
 let mock;
-// GET a URL and return its body as text, or "" on any failure (like `curl -sS` did: the
-// body of a 404 is still returned, a dead connection returns nothing). SEEKTER_HTTP names a
-// module whose default export answers instead, which is how the tests run without the network.
-// `post` sends a JSON body instead (Workday's public job search is a POST); the fake gets it as
-// its second argument.
-export async function getText(url, timeoutSec = 40, post = null) {
+// One request, with its status. SEEKTER_HTTP names a module whose default export answers
+// instead of the network, which is how the tests run without it. `post` sends a JSON body instead (Workday's public job search is a POST); the fake gets it as
+// its second argument and may answer a string (status 200) or {status, body}.
+export async function fetchResult(url, timeoutSec = 40, post = null) {
   if (process.env.SEEKTER_HTTP) {
     mock ??= (await import(pathToFileURL(process.env.SEEKTER_HTTP).href)).default;
-    return String((await mock(url, post)) ?? "");
+    const r = await mock(url, post);
+    return r !== null && typeof r === "object" ? { status: r.status ?? 200, body: String(r.body ?? "") } : { status: 200, body: String(r ?? "") };
   }
   try {
     const init = { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(timeoutSec * 1000) };
     if (post) Object.assign(init, { method: "POST", body: JSON.stringify(post),
       headers: { ...init.headers, "content-type": "application/json", accept: "application/json" } });
     const res = await fetch(url, init);
-    return await res.text();
+    return { status: res.status, body: await res.text() };
   } catch {
-    return "";
+    return { status: 0, body: "" };
   }
+}
+
+// GET a URL and return its body as text, or "" on any failure (like `curl -sS` did: the
+// body of a 404 is still returned, a dead connection returns nothing).
+export async function getText(url, timeoutSec = 40, post = null) {
+  return (await fetchResult(url, timeoutSec, post)).body;
 }
 
 export async function getJson(url, timeoutSec, fallback, post = null) {
