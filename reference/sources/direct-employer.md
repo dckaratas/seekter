@@ -16,6 +16,17 @@ The companies come from `employers` in `profile/settings.json`, one row per comp
 | `ashby` | `jobs.ashbyhq.com/<slug>` | `api.ashbyhq.com/posting-api/job-board/<slug>` |
 | `lever` | `jobs.lever.co/<slug>` (or `jobs.eu.lever.co`) | `api.lever.co/v0/postings/<slug>?mode=json`, then the EU host |
 | `workable` | `apply.workable.com/<slug>` | `apply.workable.com/api/v1/widget/accounts/<slug>` |
+| `smartrecruiters` | `jobs.smartrecruiters.com/<slug>/<id>` (case matters: `ScalableGmbH`) | `api.smartrecruiters.com/v1/companies/<slug>/postings`, 100 a page |
+| `recruitee` | `<slug>.recruitee.com` | `<slug>.recruitee.com/api/offers/` |
+| `personio` | `<slug>.jobs.personio.de` (or `.com`) | `<slug>.jobs.personio.de/xml`, then `.com` |
+| `teamtailor` | the career site's host: `<co>.teamtailor.com` or the company's own domain (`jobs.<co>.com`) | `<host>/jobs.rss` |
+| `workday` | `<tenant>.<wdN>/<site>`, read off a posting URL: `cloudera.wd5.myworkdayjobs.com/External_Career` → `cloudera.wd5/External_Career` | `<host>/wday/cxs/<tenant>/<site>/jobs`, one search per `freehire.queries` term, 20 a page, 3 pages |
+
+Each system is one file in `scripts/providers/`, named after the `ats` value; `scripts/providers/README.md` has the three-line contract for adding another.
+
+**Workday searches, it does not list.** Its public endpoint is the one the career site's own search box calls, so the sweep runs the profile's search terms and the title filter does the rest; a role whose title shares no word with those terms is missed. The other systems return the whole board.
+
+**A SmartRecruiters company id that does not exist answers with an empty list, not an error**, so a wrong slug reads as a board with nothing open. Measured 22 Oct 2026 on five systems: real boards returned 4 to 254 postings each; a made-up slug returned `null` (reported as a `problem:` line) on Recruitee, Personio and Workday, and an empty board on SmartRecruiters. A large employer showing 0 postings is the sign to check the slug.
 
 The script waits a second between boards, filters titles with the profile's `title_keep` / `title_drop`, drops anything already in the tracker, writes `runs/<date>/employers.json` and prints one line per candidate. A slug that returns nothing is printed as a `problem:` line rather than guessed at.
 
@@ -26,6 +37,8 @@ The script waits a second between boards, filters titles with the profile's `tit
 **Pick employers for where they hire, not for how well known they are.** A company that hires remotely only in the US adds rows to read and nothing to apply to. The list earns its place with companies that name the candidate's region or a time-zone window in their postings, or that sponsor where the candidate would move.
 
 **The location line is the employer's own, so it binds, but it is still a label.** Apply the country-list and time-zone rules in `_core.md` and the run skill: an Ashby "The Americas / Europe" header on 9 Oct came with a form question about working hours, not residence, so a candidate living in neither region but able to work those hours could answer it truthfully.
+
+**A company's own career-site domain can hide its system.** Measured 22 Oct 2026: a bank posted on a job board that wanted an account, and its own careers page at `jobs.<company>.<tld>` turned out to be Teamtailor (`/jobs.rss` answered), with no account needed to apply. Try `<host>/jobs.rss` and the Recruitee and Personio feeds before calling a company's careers site unknown.
 
 ## Checking one company by hand
 

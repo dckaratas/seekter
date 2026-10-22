@@ -10,9 +10,10 @@ Seekter is a job-search agent that runs inside Claude Code: it searches job sour
 | `reference/sources/` | One file per job source: `_core.md` (always read) plus `your-links.md`, `freehire.md`, `linkedin.md` (alert emails; read-only mode with limits), one per board, `inbox.md` | tracked |
 | `reference/ats/` | One file per application form system: `_core.md` (universal rules, the identify table, the hand-off list) plus `greenhouse.md`, `ashby.md`, `workday.md`, `lever.md`… | tracked |
 | `templates/` | Profile and search-config templates that `/seekter-init` fills | tracked |
-| `scripts/seekter.mjs` | Tracker CLI: check, check-many, add, move, list, index, stats | tracked |
+| `scripts/seekter.mjs` | Tracker CLI: check, check-many, add, move, list, index, stats (`--by <field>` breaks sent, replies and interviews down by source, form system, title, fit…) | tracked |
 | `scripts/freehire_sweep.mjs` | Step 1 API sweep with the profile's queries | tracked |
 | `scripts/employer_sweep.mjs` | Step 1 API sweep of the employer watchlist (`employers` in settings) and, with `--hn`, the monthly HN "Who is hiring?" thread | tracked |
+| `scripts/providers/` | One file per application system the watchlist reads (Greenhouse, Ashby, Lever, Workable, SmartRecruiters, Recruitee, Personio, Teamtailor, Workday); the contract is in its README | tracked |
 | `scripts/resume.mjs` | Resume engine: one master resume (`profile/resume/json/resume.json`: facts, a tagged bullet pool, resume types) printed per type into `profile/resume/` by the local Chrome; `validate` holds it to the profile. Look in `templates/resume/resume.css` | tracked |
 | `scripts/import_csv.mjs` | One-off import of an existing tracker (Notion/Sheets CSV) | tracked |
 | `tests/seekter.test.mjs` | Tracker CLI and sweep tests, no packages, throwaway repo per case: `node --test tests/seekter.test.mjs`. Run it after any change to `scripts/` | tracked |

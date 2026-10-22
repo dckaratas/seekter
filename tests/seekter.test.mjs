@@ -203,6 +203,8 @@ function makeRepo(prefix, scripts = ["seekter.mjs"]) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
   fs.mkdirSync(path.join(tmp, "scripts"));
   for (const s of scripts) fs.copyFileSync(path.join(SCRIPTS, s), path.join(tmp, "scripts", s));
+  // The employer sweep reads one file per application system from scripts/providers/.
+  if (scripts.includes("employer_sweep.mjs")) fs.cpSync(path.join(SCRIPTS, "providers"), path.join(tmp, "scripts", "providers"), { recursive: true });
   fs.mkdirSync(path.join(tmp, "applications"));
   return tmp;
 }
@@ -556,8 +558,6 @@ describe("tracker", () => {
     assert.equal(s.response_rate, 0.5);
   });
 
-  test("stats response rate is null rather than zero when nothing was sent", () => {
-    assert.equal(JSON.parse(cli("stats").out).response_rate, null);
   test("stats --by groups sent applications and counts an interview the log remembers", () => {
     add({ company: "A", role: "Senior Product Designer (Growth)", url: "https://a.com/careers/1111111", status: "applied", ats: "ashby" });
     add({ company: "B", role: "Product Designer - AI", url: "https://b.com/careers/2222222", status: "applied", ats: "ashby" });
@@ -584,6 +584,8 @@ describe("tracker", () => {
     }
   });
 
+  test("stats response rate is null rather than zero when nothing was sent", () => {
+    assert.equal(JSON.parse(cli("stats").out).response_rate, null);
   });
 
   test("index writes the Needs you table and a month page", () => {
@@ -746,6 +748,42 @@ describe("employer sweep", () => {
     assert.equal(r.rc, 0, r.err);
     assert.match(r.out, /problem: Nobody: no board at ashby:nobody/);
     assert.match(r.out, /problem: Odd: no board at taleo:odd/);
+  });
+
+  test("each application system reads its own public board", () => {
+    const rss = `<?xml version="1.0"?><rss version="2.0" xmlns:tt="https://teamtailor.com/locations"><channel>
+      <item><title>Senior Product Designer</title><link>https://jobs.tt-co.example/jobs/1-senior-product-designer</link><remoteStatus>hybrid</remoteStatus>
+      <tt:locations><tt:location><tt:name>Copenhagen, Denmark</tt:name></tt:location></tt:locations></item>
+      <item><title>Accountant</title><link>https://jobs.tt-co.example/jobs/2-accountant</link><remoteStatus>none</remoteStatus></item>
+      </channel></rss>`;
+    const xml = `<?xml version="1.0"?><workzag-jobs><position><id>77</id><office>Berlin</office><additionalOffice>Remote</additionalOffice>
+      <name>Product Designer &amp; Researcher</name></position></workzag-jobs>`;
+    http = fakeHttp(tmp, [
+      ["api.smartrecruiters.com/v1/companies/SrCo/postings", JSON.stringify({ totalFound: 1, content: [{ id: "744", name: "Product Designer ", location: { city: "Munich", country: "de", remote: true } }] })],
+      ["srco.recruitee.com/api/offers", JSON.stringify({ offers: [{ title: "UX Designer", location: "Amsterdam", remote: false, careers_url: "https://srco.recruitee.com/o/ux-designer" }] })],
+      ["pco.jobs.personio.de/xml", xml],
+      ["jobs.tt-co.example/jobs.rss", rss],
+      ["wdco.wd3.myworkdayjobs.com/wday/cxs/wdco/External/jobs", JSON.stringify({ total: 1, jobPostings: [{ title: "Lead Product Designer", locationsText: "Hungary > Budapest", remoteType: "Hybrid", externalPath: "/job/Budapest/Lead-Product-Designer_1" }] })],
+    ], "{}");
+    const r = sweep([
+      { name: "Sr", ats: "smartrecruiters", slug: "SrCo" }, { name: "Re", ats: "recruitee", slug: "srco" },
+      { name: "Pe", ats: "personio", slug: "pco" }, { name: "Tt", ats: "teamtailor", slug: "jobs.tt-co.example" },
+      { name: "Wd", ats: "workday", slug: "wdco.wd3/External" }]);
+    assert.equal(r.rc, 0, r.err);
+    assert.match(r.out, /5 boards, 6 postings → 5 candidates/);
+    assert.match(r.out, /Sr \| Product Designer \| Munich DE remote \| https:\/\/jobs\.smartrecruiters\.com\/SrCo\/744/);
+    assert.match(r.out, /Re \| UX Designer \| Amsterdam \| https:\/\/srco\.recruitee\.com\/o\/ux-designer/);
+    assert.match(r.out, /Pe \| Product Designer & Researcher \| Berlin \/ Remote \| https:\/\/pco\.jobs\.personio\.de\/job\/77/);
+    assert.match(r.out, /Tt \| Senior Product Designer \| Copenhagen, Denmark \/ remote: hybrid/);
+    assert.match(r.out, /Wd \| Lead Product Designer \| Hungary > Budapest · Hybrid \| https:\/\/wdco\.wd3\.myworkdayjobs\.com\/en-US\/External\/job\/Budapest\/Lead-Product-Designer_1/);
+    assert.doesNotMatch(r.out, /Accountant/);
+    assert.doesNotMatch(r.out, /problem:/);
+  });
+
+  test("a Workday slug in the wrong shape is reported, not fetched", () => {
+    const r = sweep([{ name: "Wd", ats: "workday", slug: "https://wdco.wd3.myworkdayjobs.com/External" }]);
+    assert.match(r.out, /problem: Wd: no board at workday:/);
+    assert.ok(!http.urls().some((u) => u.includes("myworkdayjobs")));
   });
 
   test("an empty watchlist stops the sweep", () => {

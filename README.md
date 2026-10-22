@@ -39,7 +39,7 @@ Requirements: [Claude Code](https://docs.claude.com/en/docs/claude-code) (a paid
 | Command | What it does |
 |---|---|
 | `/seekter-init` | Interviews you and writes your profile: contact details, resumes, target roles, where you can work, salary bands, standard form answers, sectors you won't touch, a fact bank for free-text answers, your writing voice, and the search queries. Resumable. Can import an existing tracker from a Notion/Sheets CSV. |
-| `/seekter-run` | The daily run. Four sources in a fixed order (links you bring, freehire API, LinkedIn, other boards), filtering, dedup, form filling, tracker update, and a report with a per-source table. Applies without asking when a posting fits; stops only for things only you can decide. |
+| `/seekter-run` | The daily run. Four sources in a fixed order (links you bring, freehire API, LinkedIn, other boards), filtering, dedup, form filling, tracker update, and a report with a per-source table. Applies without asking when a posting fits; stops only for things only you can decide. Every posting gets a 1-5 fit score before its form, which orders the queue and never removes anything. |
 | `/seekter-log` | Records what happened next: rejections, interviews, offers, applications you made by hand, or a sweep of your inbox. |
 | `/seekter-report` | Funnel, replies and interviews broken down by source, apply path, form system, location track, title, fit score and resume type (`stats --by`), top skip reasons, open hand-offs, and at most two suggested changes. |
 | `/seekter-git` | Ships the kit. Branches, commits and pushes the shareable files (skills, references, scripts) after a run has taught Seekter something, and scans the diff for your personal details first so they never leave your machine. Your profile, applications and runs are never committed. Once you have merged, it can also cut the release. |
@@ -171,6 +171,7 @@ Two pages is the ceiling, checked on A4 and US Letter (`validate --pages`). Leng
 reference/          sources/ (one file per job source) · ats/ (one file per application form system); each has a _core.md read first
 templates/          profile.md · settings.json · resume/ (the resume stylesheet, an example master resume and an example resume in the site's format)
 scripts/            seekter.mjs · freehire_sweep.mjs · employer_sweep.mjs · import_csv.mjs · resume.mjs
+  providers/        one reader per application system for the employer watchlist
 tests/              tracker CLI tests: node --test tests/seekter.test.mjs
 .github/            leak scan and test workflows · issue and pull request templates
 profile/  applications/  runs/     ← yours, git-ignored

@@ -12,6 +12,7 @@ Everything in `reference/` was learned by filling a real form or sweeping a real
 | An application form system (ATS) behaving that way | `reference/ats/<vendor>.md` | Add a row to the identify table in `reference/ats/_core.md` |
 | A lesson that belongs to no single source or vendor | the matching `_core.md` | Nothing else |
 | A source you checked and found dead, paywalled or empty | `reference/sources/dead-and-low-value.md` | Say what you ran and what came back |
+| An application system whose public job board the employer watchlist can't read yet | a new file in `scripts/providers/` (contract in its README) | A test with a fake response in `tests/seekter.test.mjs`, and a row in `reference/sources/direct-employer.md`. A good first pull request: one file, one test, one row |
 | A bug in the tracker CLI or a sweep script | `scripts/` | Say how to reproduce it |
 | A change to how a command behaves | `.claude/skills/seekter-*/SKILL.md` | Open an issue first; these are the agent's instructions |
 | Anything larger than a fix: a new document, a translation, a new feature or command | Wherever the issue settles on | **Open a proposal issue first**, before writing it |

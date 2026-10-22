@@ -8,21 +8,26 @@ let mock;
 // GET a URL and return its body as text, or "" on any failure (like `curl -sS` did: the
 // body of a 404 is still returned, a dead connection returns nothing). SEEKTER_HTTP names a
 // module whose default export answers instead, which is how the tests run without the network.
-export async function getText(url, timeoutSec = 40) {
+// `post` sends a JSON body instead (Workday's public job search is a POST); the fake gets it as
+// its second argument.
+export async function getText(url, timeoutSec = 40, post = null) {
   if (process.env.SEEKTER_HTTP) {
     mock ??= (await import(pathToFileURL(process.env.SEEKTER_HTTP).href)).default;
-    return String((await mock(url)) ?? "");
+    return String((await mock(url, post)) ?? "");
   }
   try {
-    const res = await fetch(url, { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(timeoutSec * 1000) });
+    const init = { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(timeoutSec * 1000) };
+    if (post) Object.assign(init, { method: "POST", body: JSON.stringify(post),
+      headers: { ...init.headers, "content-type": "application/json", accept: "application/json" } });
+    const res = await fetch(url, init);
     return await res.text();
   } catch {
     return "";
   }
 }
 
-export async function getJson(url, timeoutSec, fallback) {
-  try { return JSON.parse(await getText(url, timeoutSec)); } catch { return fallback; }
+export async function getJson(url, timeoutSec, fallback, post = null) {
+  try { return JSON.parse(await getText(url, timeoutSec, post)); } catch { return fallback; }
 }
 
 // Run `fn` over `items` with at most `n` in flight; results keep the input order.
