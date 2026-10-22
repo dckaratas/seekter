@@ -4,6 +4,111 @@ The version is the git tag; there is no version file. Each release is also on
 [the releases page](https://github.com/selfishprimate/seekter/releases) with the
 same text.
 
+## v0.10.0 — 22 October 2026
+
+The fit score has a scale and is given before the form, the report can say
+which applications get answers, the employer watchlist reads nine application
+systems instead of four, and two ways of wasting a filled form are closed: a
+posting already tracked under a shortened URL, and a posting that is no longer
+open.
+
+### The fit score was a number with no meaning
+
+Every record had a `fit` field, but nothing said what a 4 was, and it was
+written after the form, when it could no longer change anything. It still
+predicted replies. On one tracker of 561 sent applications (22 Oct), postings
+scored 4 or 5 got a reply 34.5% of the time against 19.5% for 2 or 3, and every
+interview with a score had a 4 or a 5, while 208 records had no score or one off
+the scale.
+
+So it now has a rubric, in the run skill: 5 when every requirement is met, 4
+when the core ones are, 3 with one core requirement missing or the level a step
+off, 2 with two or more missing, 1 when almost nothing matches. It is read from
+the profile's target roles and fact bank, given after reading the posting and
+before the form, and never moved by location or pay. It orders the queue inside
+each priority tier and removes nothing. `add --fit` refuses anything outside 1
+to 5.
+
+### New: `stats --by`, which applications get answers
+
+`node scripts/seekter.mjs stats --by <field>` breaks sent applications, replies
+and interviews down by any front-matter field (source, form system, apply path,
+location fit, fit, resume type) or by `title`, `seniority` and `month`, which it
+derives from the record. Two fields can be crossed (`--by ats,location_fit`) and
+`--min N` hides groups too small to read. An interview counts when a record
+reached interviewing or offer at any point, so a later rejection does not erase
+it. `/seekter-report` uses it for its breakdowns.
+
+### New: five more application systems on the employer watchlist
+
+The watchlist could only read Greenhouse, Ashby, Lever and Workable, so a
+company on any other system could not be watched at all. It now also reads
+SmartRecruiters, Recruitee, Personio, Teamtailor and Workday:
+
+| `ats` | `slug` |
+|---|---|
+| `smartrecruiters` | the company identifier in `jobs.smartrecruiters.com/<slug>` |
+| `recruitee` | the subdomain of `<slug>.recruitee.com` |
+| `personio` | the subdomain of `<slug>.jobs.personio.de` (or `.com`) |
+| `teamtailor` | the career site's host, custom domains included |
+| `workday` | `tenant.wdN/site`, from `<tenant>.wdN.myworkdayjobs.com/<site>` |
+
+Workday is searched with the profile's queries, three pages each, rather than
+read whole. Measured on real boards on 22 Oct: 4 to 254 postings each. A wrong
+slug is reported on Recruitee, Personio and Workday; SmartRecruiters answers an
+unknown company with an empty list, so check a new row's first sweep.
+
+Each system is one file in `scripts/providers/`, with the contract in that
+folder's README, so adding another is a one-file pull request.
+
+### A posting tracked under one URL came back under a shorter one, and `check` called it new
+
+A record is keyed on the URL it was first applied through. On 22 Oct a
+careers-site posting came back through LinkedIn with the end of its path cut
+off, `check` answered NEW, and its form was opened a second time. Nothing
+warns you when this happens, which is what makes it expensive.
+
+`check`, `check-many` and `add` now take a second look when nothing matches
+exactly: on the same host, one path being the other cut short, or both carrying
+the same posting id (five or more digits with an optional short prefix, like
+`P-100931` or `_261413-1`), is the same posting, and the output says which of
+the two it was. Stored keys do not change. Prefixed keys (`linkedin:`, `uuid:`,
+`greenhouse:`) stay exact. Across 2,103 records on one tracker the new check
+pairs exactly one couple, and that couple is a real duplicate.
+
+### New: `live.mjs`, is the posting still open?
+
+A run used to find out a role was gone only after resolving its apply URL and
+opening the form. `node scripts/live.mjs <url>…` asks the posting's own system
+and prints OPEN, CLOSED or UNKNOWN for each, and exits 3 when every URL is
+closed. It covers the nine watchlist systems; LinkedIn is never called. The run
+skill does the check between dedup and the form, and on queue items carried
+over from earlier runs. Only CLOSED skips a posting.
+
+It asks for the posting itself, not the company's board: an open Ashby posting
+can be missing from its board (unlisted), and the first version of the check
+called one closed for that reason. Measured on 40 tracked applications: 8
+closed, and the four whose forms were tried no longer opened.
+
+### Smaller traps, each measured on a real application
+
+- **Phenom:** on a second employer's quick-apply flow the tab froze about ten
+  seconds after any file was set through the extension, the resume and the
+  optional attachments alike. Phenom is now a hand-off from the start.
+- **Factorial's own careers site** can answer one Send with "You have already
+  applied to this job opening". It is the same submission, not an earlier one.
+- **LinkedIn read mode:** a detail loop left running between calls crawls even
+  in a visible, focused tab (three details in about three minutes). Awaited
+  inside the call it runs at the intended pace.
+
+### Upgrading
+
+Nothing to migrate. Your `profile/`, `applications/` and `runs/` are git-ignored
+and untouched, and every stored key reads as before. Fit scores already in the
+tracker stay as they are; new ones follow the scale. To watch a company on one
+of the new systems, add a row to `employers` in `profile/settings.json` with the
+`ats` and `slug` above.
+
 ## v0.9.0 — 22 October 2026
 
 The kit runs on Node instead of Python, it keeps your resume as data that it
