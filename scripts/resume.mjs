@@ -151,7 +151,8 @@ export function buildVariant(master, name) {
     header: { ...master.header, role: v.role ?? master.header?.role ?? "" },
     summary: v.summary ?? master.summary ?? "",
     experience,
-    projects: keep(arr(master.projects), v.projects).map((p) => (v.short && p.short_description ? { ...p, description: p.short_description } : p)),
+    // Projects print newest first, like the jobs, whatever order the type lists them in; a tie keeps the master's order.
+    projects: arr(master.projects).filter((p) => !Array.isArray(v.projects) || v.projects.includes(p.id)).sort((a, b) => String(b.start || "").localeCompare(String(a.start || ""))).map((p) => (v.short && p.short_description ? { ...p, description: p.short_description } : p)),
     // `skill_items` caps each group's list, keeping the order the master gives.
     skills: keep(arr(master.skills), v.skills).map((s) => (Number.isInteger(v.skill_items) ? { ...s, items: arr(s.items).slice(0, v.skill_items) } : s)),
     education: keep(arr(master.education), v.education).map((e) => (v.education_notes === false ? (({ note, ...rest }) => rest)(e) : e)),

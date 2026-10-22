@@ -905,6 +905,12 @@ describe("fitting a resume type on two pages", async () => {
     assert.match(cv.renderBody(d), /class="cv-root cv-compact"/);
   });
 
+  test("projects print newest first whatever order the type lists them in", () => {
+    const d = cv.buildVariant({ projects: [{ id: "old", name: "Old", start: "2018" }, { id: "new", name: "New", start: "2026" }, { id: "mid", name: "Mid", start: "2025" }],
+      variants: { t: { projects: ["old", "new", "mid"] } } }, "t");
+    assert.deepEqual(d.projects.map((p) => p.name), ["New", "Mid", "Old"]);
+  });
+
   test("the kit's static Inter is inlined and no web font is fetched", () => {
     const html = cv.renderHtml(cv.mergeResume({}));
     assert.equal((html.match(/@font-face/g) || []).length, 8, "four weights, latin and latin-ext");
