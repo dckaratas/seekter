@@ -852,6 +852,77 @@ describe("live check", () => {
   });
 });
 
+// ----------------------------------------------------------- what a form receives
+
+describe("answer check", () => {
+  let tmp;
+  const PROFILE = [
+    "# Candidate profile", "",
+    "## 1. Identity and contact", "", "| Name | Jo Example |", "",
+    "## 3. Standard answers", "", "| Work authorisation | I can work as a contractor from my home country without sponsorship. |", "",
+    "## 4. Salary bands", "", "| Europe | EUR 4,500-6,000 / month |", "",
+    "## 8. Fact bank", "", "- Built a design system of 870 tokens and 50+ components, used by four products.",
+    "- Cut checkout steps from 7 to 3. Stories are in `profile/stories.md`.", "",
+    "## 9. Voice", "", "- **Banned phrases:** passionate about · leverage · end to end / end-to-end.", "",
+    "## 10. Search configuration", "", "- 12 searches a run, 40 details.", "",
+  ].join("\n");
+  beforeEach(() => {
+    tmp = makeRepo("seekter-claims-", ["seekter.mjs", "resume.mjs", "claims.mjs"]);
+    fs.mkdirSync(path.join(tmp, "profile"));
+    fs.writeFileSync(path.join(tmp, "profile", "profile.md"), PROFILE);
+    fs.writeFileSync(path.join(tmp, "profile", "stories.md"), "Mobile web was 80% of traffic, the app 9%.");
+  });
+  afterEach(() => fs.rmSync(tmp, { recursive: true, force: true }));
+  const check = (text, ...args) => {
+    fs.writeFileSync(path.join(tmp, "answer.txt"), text);
+    return runIn(tmp, "claims.mjs", [path.join(tmp, "answer.txt"), ...args]);
+  };
+
+  test("a number from the fact bank or a file it names passes; an invented one does not", () => {
+    const ok = check("I built 870 tokens and 50+ components. Mobile web was 80% of traffic.");
+    assert.equal(ok.rc, 0, ok.out);
+    const bad = check("I grew conversion by 40% and led 12 designers.");
+    assert.equal(bad.rc, 1);
+    assert.match(bad.out, /number .*"40%"/);
+    // 12 and 40 are in the profile, but in its search settings, which are not facts.
+    assert.match(bad.out, /number .*"12"/);
+  });
+
+  test("dates, years, links, salary answers and the posting's own numbers are not claims", () => {
+    const text = "Available from 3 Nov 2026, or 2026-11-03 at 10:00. Since 2015. See https://example.com/job/123456. " +
+      "Salary: EUR 72,000 gross per year (GBP 3,900 a month), or 55,000 to 60,000 euros. The 5-minute video and your 250 stores.";
+    const without = check(text);
+    assert.equal(without.rc, 1);
+    assert.match(without.out, /"250"/);
+    fs.writeFileSync(path.join(tmp, "posting.txt"), "We run 250 stores across Europe.");
+    const r = check(text, "--posting", path.join(tmp, "posting.txt"));
+    assert.equal(r.rc, 0, r.out);
+  });
+
+  test("banned phrases and long dashes are flagged", () => {
+    const r = check("I am passionate about tokens \u2014 and I own them end-to-end.");
+    assert.equal(r.rc, 1);
+    assert.match(r.out, /uses "passionate about"/);
+    assert.match(r.out, /uses "end-to-end"/);
+    assert.match(r.out, /a long dash/);
+  });
+
+  test("a sentence already sent to another company is a repeat, unless it is the profile's own", () => {
+    const sent = "The first week decides whether a new user stays, so I would start with the onboarding flow.";
+    const add = runIn(tmp, "seekter.mjs", ["add", "--company", "Acme", "--role", "Designer", "--url", "https://jobs.example.com/acme/1",
+      "--answers", sent, "--no-index"]);
+    assert.equal(add.rc, 0, add.err);
+    const r = check(`${sent} I can work as a contractor from my home country without sponsorship.`);
+    assert.equal(r.rc, 1);
+    assert.match(r.out, /repeat .*sent before to Acme/);
+    assert.equal((r.out.match(/repeat/g) || []).length, 1, "the standard answer from the profile is meant to repeat");
+    // Checking the answers of the same posting again is not a repeat.
+    assert.equal(check(sent, "--url", "https://jobs.example.com/acme/1").rc, 0);
+    // A prep text is not sent anywhere, so it may reuse what the application said.
+    assert.equal(check(sent, "--no-repeat").rc, 0);
+  });
+});
+
 // ------------------------------------------------------------------ the CV engine
 
 describe("resume engine", async () => {

@@ -17,6 +17,7 @@ body:
         - /seekter-init
         - /seekter-run
         - /seekter-log
+        - /seekter-interview
         - /seekter-report
         - /seekter-git
         - scripts/seekter.mjs
@@ -24,6 +25,9 @@ body:
         - scripts/employer_sweep.mjs
         - scripts/import_csv.mjs
         - scripts/resume.mjs
+        - scripts/live.mjs
+        - scripts/claims.mjs
+        - scripts/providers/
         - Somewhere else
     validations:
       required: true

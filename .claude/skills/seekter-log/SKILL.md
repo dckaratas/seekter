@@ -12,7 +12,7 @@ All changes go through `scripts/seekter.mjs`; never edit front matter or `skippe
 | User says | Command |
 |---|---|
 | "X rejected me" | `node scripts/seekter.mjs move <url-or-file> rejected --note "<date>, <one line from the mail>"` |
-| "X invited me to a call / screening / interview" | `move … interviewing --note "<stage, date, who>"` |
+| "X invited me to a call / screening / interview" | `move … interviewing --note "<stage, date, who>"`, then offer `/seekter-interview` for the prep |
 | "Got an offer from X" | `move … offer --note "<amount, deadline>"` |
 | "I applied to X myself" | `check <url>` first, then `add --status applied --source manual --notes "applied by hand"` |
 | A hand-off is submitted after the record exists, with free-text answers | `move … applied --note "<date, how>" --answers "<the answers exactly as sent>"` (appended to the record's Answers section) |
