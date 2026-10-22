@@ -12,7 +12,7 @@
 //   node scripts/seekter.mjs list [--status S] [--since YYYY-MM-DD]
 //   node scripts/seekter.mjs index
 //   node scripts/seekter.mjs normalize [--dry-run]
-//   node scripts/seekter.mjs stats [--since YYYY-MM-DD]
+//   node scripts/seekter.mjs stats [--since YYYY-MM-DD] [--by FIELD[,FIELD]] [--min N]   (--by: any front-matter field, or title, seniority, month)
 //   node scripts/seekter.mjs migrate [--keep-old]         (v1 status folders -> month folders)
 //
 // Ported from scripts/seekter.py on 21 Oct 2026. Every record written by the Python version
@@ -632,6 +632,9 @@ function cmdCheckMany() {
 
 function cmdAdd(a) {
   if (!STATUSES.includes(a.status)) die(`status must be one of ${pyList(STATUSES)}`);
+  // The fit score is a defined 1-5 scale (seekter-run §3). Free text and a 10-point scale both
+  // slipped into the tracker before it had a definition, and neither can be grouped.
+  if (present(a.fit) && !/^[1-5]$/.test(String(a.fit).trim())) die(`fit must be a whole number from 1 to 5, got "${a.fit}"`);
   const key = jobKey(a.url || "");
   if (key && !a.force) {
     for (const r of allApps()) if (r.job_key === key) die(`DUPLICATE: ${label(r)} (use --force to add anyway)`);
@@ -808,6 +811,7 @@ function counts(rs) {
 }
 
 function cmdStats(a) {
+  if (a.by) return cmdBreakdown(a);
   const [c, sent] = counts(rows(a.since));
   const total = Object.values(c).reduce((x, y) => x + y, 0);
   let rate = "null";
@@ -818,6 +822,57 @@ function cmdStats(a) {
   const lines = [`"total": ${total}`, `"sent": ${sent}`, ...Object.entries(c).map(([k, v]) => `${JSON.stringify(k)}: ${v}`),
     `"response_rate": ${rate}`];
   console.log("{\n " + lines.join(",\n ") + "\n}");
+  return 0;
+}
+
+// What happened to a sent application. A reply is any answer from the employer; an interview
+// is a record that reached `interviewing` or `offer` at some point, which the log keeps even
+// after a later rejection or close. Six interviews in 561 sends is why both are counted:
+// replies are the only outcome with enough volume to compare groups by.
+const reachedInterview = (r) => /^(interviewing|offer)$/.test(r.status || "") ||
+  /^- \d{4}-\d{2}-\d{2}: (interviewing|offer)\b/m.test(r._body || "");
+const SENIORITY = ["intern", "junior", "mid", "senior", "staff", "principal", "lead", "head", "director"];
+// Grouping keys derived from a record. `title` is the role with seniority words, brackets and
+// anything after a dash or comma removed, so "Senior Product Designer (Growth)" and
+// "Product Designer - AI" both land under "product designer".
+export function groupKey(r, field) {
+  const role = String(r.role || "").toLowerCase();
+  if (field === "seniority") return SENIORITY.find((w) => new RegExp(`\\b${w}\\b`).test(role)) || "none";
+  if (field === "title") {
+    const t = role.replace(/\(.*?\)|\[.*?\]/g, " ").split(/\s[-–—|,:]\s|,/)[0]
+      .replace(new RegExp(`\\b(${SENIORITY.join("|")}|sr\\.?|jr\\.?|ii|iii|iv)\\b`, "g"), " ").replace(/[^a-z0-9/&+ ]/g, " ")
+      .replace(/\s+/g, " ").replace(/^[/&+ ]+|[/&+ ]+$/g, "").trim();
+    return t || "(none)";
+  }
+  if (field === "month") return String(r.applied || r.updated || "").slice(0, 7) || "(none)";
+  const v = r[field.replace(/-/g, "_")];
+  return v === undefined || v === null || v === "" ? "(none)" : String(v);
+}
+
+function cmdBreakdown(a) {
+  const fields = String(a.by).split(",").map((f) => f.trim()).filter(Boolean);
+  const sent = rows(a.since).filter((r) => SENT.includes(r.status));
+  const groups = new Map();
+  for (const r of sent) {
+    const k = fields.map((f) => groupKey(r, f)).join(" · ");
+    const g = groups.get(k) || { sent: 0, replied: 0, rejected: 0, interview: 0 };
+    g.sent++;
+    if (["interviewing", "offer", "rejected"].includes(r.status)) g.replied++;
+    if (r.status === "rejected") g.rejected++;
+    if (reachedInterview(r)) g.interview++;
+    groups.set(k, g);
+  }
+  const min = Number(a.min ?? 1);
+  const pct = (n, d) => (d ? `${Math.round((n / d) * 1000) / 10}%` : "-");
+  const all = [...groups.entries()].sort((x, y) => y[1].sent - x[1].sent || (x[0] < y[0] ? -1 : 1));
+  const shown = all.filter(([, g]) => g.sent >= min);
+  const out = [`| ${fields.join(" · ")} | sent | replies | reply rate | interviews | interview rate |`, "|---|---|---|---|---|---|"];
+  for (const [k, g] of shown) out.push(`| ${cell(k)} | ${g.sent} | ${g.replied} | ${pct(g.replied, g.sent)} | ${g.interview} | ${pct(g.interview, g.sent)} |`);
+  const tot = sent.length, rep = sent.filter((r) => ["interviewing", "offer", "rejected"].includes(r.status)).length;
+  const iv = sent.filter(reachedInterview).length;
+  out.push(`| **all** | ${tot} | ${rep} | ${pct(rep, tot)} | ${iv} | ${pct(iv, tot)} |`);
+  if (shown.length < all.length) out.push("", `${all.length - shown.length} smaller groups (under ${min} sent) not shown.`);
+  console.log(out.join("\n"));
   return 0;
 }
 
@@ -981,7 +1036,7 @@ const COMMANDS = {
   index: { fn: (a) => cmdIndex(a) },
   normalize: { fn: cmdNormalize, options: { "dry-run": { flag: true } } },
   settings: { fn: cmdSettings, options: { check: { flag: true } } },
-  stats: { fn: cmdStats, options: { since: { default: null } } },
+  stats: { fn: cmdStats, options: { since: { default: null }, by: { default: null }, min: { default: null } } },
   migrate: { fn: cmdMigrate, options: { "keep-old": { flag: true } } },
 };
 

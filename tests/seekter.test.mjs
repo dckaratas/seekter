@@ -558,6 +558,32 @@ describe("tracker", () => {
 
   test("stats response rate is null rather than zero when nothing was sent", () => {
     assert.equal(JSON.parse(cli("stats").out).response_rate, null);
+  test("stats --by groups sent applications and counts an interview the log remembers", () => {
+    add({ company: "A", role: "Senior Product Designer (Growth)", url: "https://a.com/careers/1111111", status: "applied", ats: "ashby" });
+    add({ company: "B", role: "Product Designer - AI", url: "https://b.com/careers/2222222", status: "applied", ats: "ashby" });
+    add({ company: "C", role: "UX Designer", url: "https://c.com/careers/3333333", status: "rejected", ats: "lever" });
+    add({ company: "D", role: "Product Designer", url: "https://d.com/careers/4444444", status: "skipped", notes: "sector" });
+    assert.equal(cli("move", "https://b.com/careers/2222222", "interviewing").rc, 0);
+    assert.equal(cli("move", "https://b.com/careers/2222222", "rejected").rc, 0);
+    let r = cli("stats", "--by", "ats");
+    assert.equal(r.rc, 0);
+    assert.match(r.out, /\| ashby \| 2 \| 1 \| 50% \| 1 \| 50% \|/);
+    assert.match(r.out, /\| lever \| 1 \| 1 \| 100% \| 0 \| 0% \|/);
+    assert.match(r.out, /\| \*\*all\*\* \| 3 \| 2 \| 66\.7% \| 1 \| 33\.3% \|/); // the skip is not sent
+    r = cli("stats", "--by", "title,seniority");
+    assert.match(r.out, /\| product designer · senior \| 1 \|/);
+    assert.match(r.out, /\| product designer · none \| 1 \|/);
+  });
+
+  test("add takes a fit score from 1 to 5 and refuses anything else", () => {
+    add({ company: "A", role: "D", url: "https://a.com/careers/1111111", status: "applied", fit: "4" });
+    for (const bad of ["8", "0", "3.5", "good fit"]) {
+      const r = cli("add", "--company", "B", "--role", "D", "--url", "https://b.com/careers/2222222", "--status", "applied", "--fit", bad);
+      assert.equal(r.rc, 1, bad);
+      assert.match(r.err, /fit must be a whole number from 1 to 5/);
+    }
+  });
+
   });
 
   test("index writes the Needs you table and a month page", () => {

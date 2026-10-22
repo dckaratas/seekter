@@ -124,6 +124,22 @@ Location fit codes and their tracker labels are in the profile.
 
 Modifiers: newest postings early (first 1–2 hours = few applicants); high applicant count + low activity moves down; "work from anywhere" + "authorized in **your** country" moves up.
 
+### Fit score (1-5), given before the form
+
+The location tier says whether the candidate can take the job. The fit score says how well the candidate matches it. Give every candidate that survives §2 a score **after reading the posting and before opening the form**, from the profile's target roles (§5), work history and fact bank (§8), and write it with `--fit`. The tracker CLI rejects anything outside 1-5.
+
+| Score | Meaning |
+|---|---|
+| **5** | A target role at the candidate's level, every stated requirement met, and the core of the work is where the fact bank is strongest. |
+| **4** | A target role at the level; the core requirements met; a nice-to-have, a domain or a tool missing. |
+| **3** | A target role with **one** core requirement missing (a tool, a domain, years of a specific thing), or the level a step off (a mid-level title, a staff stretch), or a neighbouring discipline the profile allows. |
+| **2** | Two or more core requirements missing, or the core of the job sits outside the candidate's strongest work (visual or marketing design for a product designer, heavy backend for a design engineer). |
+| **1** | Nothing in §2 removes it, but almost nothing matches. Write why in the notes. |
+
+Count only what the posting asks for and what the profile can prove; a requirement the profile is silent on counts as missing. Location, sponsorship and pay never move the score: the tier carries location, and pay is not a filter.
+
+**The score orders, it never removes.** Inside each tier, open the 5s first, then the 4s, and so on; the Easy Apply list in the report is sorted the same way. A 2 or a 1 is still opened and applied to if the hard filters let it through, with the odds flagged, because §2.5 is the rule: only the hard filters skip. Measured 22 Oct 2026 on one tracker of 561 applications, before the score had a definition: postings scored 4-5 got replies 34.5% of the time against 19.5% for 2-3, and every interview with a score had a 4 or a 5. Whether the defined score predicts interviews is what `/seekter-report` checks with `stats --by fit`.
+
 **Matching job → apply without asking.** The whole point is that the user isn't interrupted.
 
 ## 4. Fill the form
@@ -174,7 +190,7 @@ Use the profile's **voice** section and **fact bank**. Engine rules that always 
    ```
    node scripts/seekter.mjs add --company "X" --role "Y" --status applied|skipped|pending \
      --url "<posting url>" --source links|freehire|linkedin|<board> --ats ashby --apply-type company-site|easy-apply|email \
-     --location-fit A|B|C --remote-scope "..." --fit 1-5 --resume <resume type uploaded, e.g. design-system-designer> \
+     --location-fit A|B|C --remote-scope "..." --fit 1-5 (§3 Fit score, given before the form) --resume <resume type uploaded, e.g. design-system-designer> \
      --why "one line" --notes "reason, confirmation number, salary given, hand-off details" \
      --answers "free-text answers exactly as submitted"
    ```

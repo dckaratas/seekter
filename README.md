@@ -41,7 +41,7 @@ Requirements: [Claude Code](https://docs.claude.com/en/docs/claude-code) (a paid
 | `/seekter-init` | Interviews you and writes your profile: contact details, resumes, target roles, where you can work, salary bands, standard form answers, sectors you won't touch, a fact bank for free-text answers, your writing voice, and the search queries. Resumable. Can import an existing tracker from a Notion/Sheets CSV. |
 | `/seekter-run` | The daily run. Four sources in a fixed order (links you bring, freehire API, LinkedIn, other boards), filtering, dedup, form filling, tracker update, and a report with a per-source table. Applies without asking when a posting fits; stops only for things only you can decide. |
 | `/seekter-log` | Records what happened next: rejections, interviews, offers, applications you made by hand, or a sweep of your inbox. |
-| `/seekter-report` | Funnel and response rate by source and by location track, top skip reasons, open hand-offs, and at most two suggested changes. |
+| `/seekter-report` | Funnel, replies and interviews broken down by source, apply path, form system, location track, title, fit score and resume type (`stats --by`), top skip reasons, open hand-offs, and at most two suggested changes. |
 | `/seekter-git` | Ships the kit. Branches, commits and pushes the shareable files (skills, references, scripts) after a run has taught Seekter something, and scans the diff for your personal details first so they never leave your machine. Your profile, applications and runs are never committed. Once you have merged, it can also cut the release. |
 
 ## Daily use
