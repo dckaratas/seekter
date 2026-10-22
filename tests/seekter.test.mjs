@@ -905,6 +905,23 @@ describe("fitting a resume type on two pages", async () => {
     assert.match(cv.renderBody(d), /class="cv-root cv-compact"/);
   });
 
+  test("the kit's static Inter is inlined and no web font is fetched", () => {
+    const html = cv.renderHtml(cv.mergeResume({}));
+    assert.equal((html.match(/@font-face/g) || []).length, 8, "four weights, latin and latin-ext");
+    assert.ok(!html.includes("fonts.googleapis.com"));
+  });
+
+  test("the ATS check flags Type 3 fonts, a missing text layer and a file over 2.5 MB", () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "seekter-resume-ats-"));
+    const write = (name, body) => { const f = path.join(tmp, name); fs.writeFileSync(f, body, "latin1"); return f; };
+    try {
+      assert.deepEqual(cv.atsProblems(write("ok.pdf", "<< /Type /Font /Subtype /Type0 >>")), []);
+      assert.match(cv.atsProblems(write("t3.pdf", "<< /Type /Font /Subtype /Type3 >>"))[0], /Type 3/);
+      assert.match(cv.atsProblems(write("img.pdf", "<< /Type /XObject /Subtype /Image >>"))[0], /no text layer/);
+      assert.match(cv.atsProblems(write("big.pdf", "<< /Type /Font /Subtype /Type0 >>" + " ".repeat(3 * 1024 * 1024)))[0], /2\.5 MB/);
+    } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+  });
+
   test("Next.js is a name, not a link", () => {
     const html = cv.renderBody(cv.mergeResume({ experience: [{ role: "R", company: "C", bullets: ["Built it on Next.js and see example.com/x."] }] }));
     assert.ok(!html.includes('href="https://Next.js"'));

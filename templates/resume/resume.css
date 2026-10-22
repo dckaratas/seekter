@@ -1,15 +1,14 @@
 /* ============================================================
    cv.css · the CV look shared with seekter.dev
-   ATS-readable, print-ready, A4. Rendered by scripts/cv.mjs.
+   ATS-readable, print-ready, A4. Rendered by scripts/resume.mjs.
    Keep it in step with seekter-web/src/styles/cv.css.
    ============================================================ */
 
 /* ---------- Fonts ----------
-   Google Fonts CDN — woff2 with proper Latin subset metadata.
-   Local TTFs caused Chromium PDF subsetter to drop hyphen and `(` glyphs
-   at certain pt sizes; the CDN's per-range woff2 files render reliably.
+   Inter, static woff2 per weight and subset in templates/resume/fonts/, inlined by
+   scripts/resume.mjs. Not a variable font and not the Google Fonts CDN: Chrome embeds a
+   variable font as Type 3 and drops the spaces in bold text, which is what a parser reads.
 */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fraunces:ital,opsz,wght@1,9..144,400&display=block');
 
 /* ---------- Page ---------- */
 @page {

@@ -5,7 +5,7 @@
 // Chromium, or Edge) already on the machine. Node 20+, no packages.
 //
 //   node scripts/resume.mjs list     profile/resume/json/resume.json                   # the resume types and their PDFs
-//   node scripts/resume.mjs validate profile/resume/json/resume.json [--pages]         # facts, numbers, dates, voice, first page; --pages prints to count pages
+//   node scripts/resume.mjs validate profile/resume/json/resume.json [--pages]         # facts, numbers, dates, voice, first page; --pages prints to count pages and check the file for ATS parsing
 //   node scripts/resume.mjs pdf      profile/resume/json/resume.json --all             # print every resume type to its PDF
 //   node scripts/resume.mjs pdf      profile/resume/json/resume.json --variant <name> [--out file.pdf]
 //   node scripts/resume.mjs build    profile/resume/json/resume.json --variant <name>  # one type as a single resume in seekter.dev's format
@@ -450,8 +450,29 @@ export function renderBody(d) {
   return `<div class="cv-root${d.layout === "compact" ? " cv-compact" : ""}">${header(d.header)}${d.sectionOrder.filter((k) => !hidden.has(k)).map((k) => sectionByKey(k, d)).join("")}</div>`;
 }
 
+// Inter ships with the kit as static woff2, one file per weight and subset, inlined so the HTML
+// stands on its own and printing needs no network. A variable font (Google Fonts' Inter, or the
+// one installed on a Mac) is embedded by Chrome as Type 3 and loses the spaces in bold text, so a
+// parser reads "LeadProductDesigner" (measured 21 Oct 2026); static faces embed as TrueType.
+const FONTS = path.join(ROOT, "templates", "resume", "fonts");
+const SUBSETS = {
+  latin: "U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD",
+  "latin-ext": "U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF",
+};
+let fontFaces;
+export function fontCss() {
+  if (fontFaces === undefined) {
+    fontFaces = [400, 500, 600, 700].flatMap((w) => Object.entries(SUBSETS).map(([subset, range]) => {
+      const file = path.join(FONTS, `inter-${subset}-${w}-normal.woff2`);
+      return fs.existsSync(file) ? `@font-face{font-family:'Inter';font-style:normal;font-weight:${w};font-display:block;` +
+        `src:url(data:font/woff2;base64,${fs.readFileSync(file).toString("base64")}) format('woff2');unicode-range:${range};}` : "";
+    })).join("\n");
+  }
+  return fontFaces;
+}
+
 export function renderHtml(d, pageSize = "A4") {
-  const css = fs.readFileSync(CSS, "utf8").replace(/size:\s*A4;/, `size: ${pageSize};`);
+  const css = fontCss() + "\n" + fs.readFileSync(CSS, "utf8").replace(/size:\s*A4;/, `size: ${pageSize};`);
   return `<!doctype html>\n<html lang="en">\n  <head>\n    <meta charset="utf-8" />\n    <title>${esc(d.header.full_name || "resume")}</title>\n` +
     `    <style>${css}</style>\n  </head>\n  <body>${renderBody(d)}</body>\n</html>\n`;
 }
@@ -478,7 +499,7 @@ export function findChrome() {
 }
 
 // Print an HTML file to PDF with a headless browser. A throwaway profile keeps it apart from
-// the browser the user is working in, and the time budget lets the web fonts arrive first:
+// the browser the user is working in, and the time budget lets the fonts load first:
 // a PDF printed before them falls back to the system sans and reflows every page.
 export function printPdf(htmlFile, outFile) {
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), "seekter-resume-"));
@@ -497,16 +518,30 @@ export function printPdf(htmlFile, outFile) {
 // Pages of a printed PDF: Chrome writes one /Type /Page object per page.
 export const pageCount = (file) => (fs.readFileSync(file).toString("latin1").match(/\/Type\s*\/Page[^s]/g) || []).length;
 
+// What an ATS needs from the file itself, read from the PDF's bytes. A Type 3 font is how Chrome
+// embeds a variable font, and parsers lose the spaces in it; a PDF with no font at all is a picture
+// of text; Greenhouse cannot parse a file over 2.5 MB.
+export function atsProblems(file) {
+  const buf = fs.readFileSync(file), text = buf.toString("latin1"), out = [];
+  if (!/\/Type\s*\/Font\b/.test(text)) out.push("has no text layer (a picture of text), so a parser reads nothing");
+  else if (/\/Subtype\s*\/Type3\b/.test(text)) out.push("embeds Type 3 fonts (a variable font), so parsers lose the spaces in bold text");
+  if (buf.length > 2.5 * 1024 * 1024) out.push(`is ${(buf.length / 1048576).toFixed(1)} MB, over Greenhouse's 2.5 MB parsing limit`);
+  return out;
+}
+
 // Print a type on A4 and on US Letter and count the pages: a resume that fits A4 can spill on Letter.
 function measure(d) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "seekter-resume-pages-"));
   try {
-    return Object.fromEntries(["A4", "Letter"].map((size) => {
+    const out = { ats: [] };
+    for (const size of ["A4", "Letter"]) {
       const html = path.join(dir, `${size}.html`), pdf = path.join(dir, `${size}.pdf`);
       fs.writeFileSync(html, renderHtml(d, size), "utf8");
       printPdf(html, pdf);
-      return [size, pageCount(pdf)];
-    }));
+      out[size] = pageCount(pdf);
+      if (size === "A4") out.ats = atsProblems(pdf);
+    }
+    return out;
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 }
 
@@ -527,6 +562,7 @@ function printOne(d, out, htmlOut) {
   fs.writeFileSync(htmlFile, renderHtml(d), "utf8");
   try { printPdf(htmlFile, out); } finally { if (!htmlOut) fs.rmSync(path.dirname(htmlFile), { recursive: true, force: true }); }
   console.log(path.relative(process.cwd(), out) || out);
+  for (const p of atsProblems(out)) console.log(`problem: ${path.relative(process.cwd(), out) || out} ${p}`);
 }
 
 // A type's PDF lives next to the master: profile/resume/<file_prefix>-<type>.pdf. The prefix (the
@@ -567,7 +603,13 @@ function main() {
         const line = `${name}: ${pages.A4} pages on A4, ${pages.Letter} on Letter`;
         if (pages.A4 > max || pages.Letter > max) problems.push(`${line} (the limit is ${max})`);
         else console.log("pages: " + line);
+        for (const p of pages.ats) problems.push(`${name}: the printed PDF ${p}`);
       }
+    }
+    // The PDFs forms upload today, whatever printed them.
+    for (const name of Object.keys(master.variants)) {
+      const pdf = pdfPath(master, name);
+      if (fs.existsSync(pdf)) for (const p of atsProblems(pdf)) problems.push(`${path.relative(ROOT, pdf)} ${p}; print it again`);
     }
     for (const c of checks) console.log("check: " + c);
     for (const p of problems) console.log("problem: " + p);
