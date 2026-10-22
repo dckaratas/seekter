@@ -3,11 +3,13 @@
 // GitHub. Run it before every `npm publish` from this folder: npm shows the README packed into the
 // latest version, never the repository's, and a page can only change by publishing.
 //
-//   node npm/readme.mjs
+//   node npm/sync-readme.mjs
 //
 // The npm page resolves nothing relative to the repository, so links to files become GitHub links,
 // images become raw.githubusercontent.com addresses, and GitHub's own alert syntax ("> [!NOTE]"),
-// which npm prints as text, is dropped. Not shipped: package.json lists only bin/ and README.md.
+// which npm prints as text, is dropped. Not shipped: package.json lists only bin/ and README.md,
+// and the name must not start with "readme", because npm packs any such file whatever `files`
+// says (0.11.1 carried this script as readme.mjs).
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
