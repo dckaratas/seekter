@@ -1,0 +1,2 @@
+# The npm package is the way in, not part of the kit: keep it out of release archives.
+npm/ export-ignore

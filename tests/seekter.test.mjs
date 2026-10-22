@@ -852,6 +852,85 @@ describe("live check", () => {
   });
 });
 
+// ------------------------------------------------------------- the npm package
+
+describe("npx seekter init", () => {
+  let tmp;
+  const BIN = path.join(REPO, "npm", "bin", "seekter.mjs");
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), "seekter-npm-")); });
+  afterEach(() => fs.rmSync(tmp, { recursive: true, force: true }));
+  const run = (...args) => {
+    const p = spawnSync(process.execPath, [BIN, ...args], { cwd: tmp, encoding: "utf8" });
+    return { rc: p.status, out: p.stdout, err: p.stderr };
+  };
+  // A release archive the way GitHub serves one: everything under one owner-repo-sha folder.
+  const archive = (files) => {
+    const src = path.join(tmp, "src"), top = path.join(src, "selfishprimate-seekter-abc1234");
+    for (const [f, text] of Object.entries(files)) {
+      fs.mkdirSync(path.dirname(path.join(top, f)), { recursive: true });
+      fs.writeFileSync(path.join(top, f), text);
+    }
+    // Written from stdout with the source as the working directory, so no drive-letter path reaches tar.
+    const out = path.join(tmp, "release.tar.gz");
+    const p = spawnSync("tar", ["-czf", "-", "selfishprimate-seekter-abc1234"], { cwd: src, maxBuffer: 1 << 26 });
+    assert.equal(p.status, 0, String(p.stderr));
+    fs.writeFileSync(out, p.stdout);
+    fs.rmSync(src, { recursive: true, force: true });
+    return out;
+  };
+  const KIT = { ".claude/skills/seekter-run/SKILL.md": "run", "scripts/seekter.mjs": "//", "profile/.gitkeep": "",
+    "applications/.gitkeep": "", "runs/.gitkeep": "", "DISCLAIMER.md": "yours" };
+
+  test("unpacks a release into a new folder, straight under it, with the private folders ready", () => {
+    const r = run("init", "search", "--from", archive(KIT));
+    assert.equal(r.rc, 0, r.err);
+    const dir = path.join(tmp, "search");
+    assert.ok(fs.existsSync(path.join(dir, ".claude", "skills", "seekter-run", "SKILL.md")));
+    for (const p of ["profile", "applications", "runs"]) assert.ok(fs.statSync(path.join(dir, p)).isDirectory());
+    assert.match(r.out, /responsible for what they say/);
+    assert.match(r.out, /\/seekter-init/);
+  });
+
+  test("never writes into a folder that already holds something", () => {
+    const dir = path.join(tmp, "search");
+    fs.mkdirSync(dir);
+    fs.writeFileSync(path.join(dir, "cv.pdf"), "mine");
+    const r = run("init", "search", "--from", archive(KIT));
+    assert.equal(r.rc, 1);
+    assert.match(r.err, /not empty/);
+    assert.deepEqual(fs.readdirSync(dir), ["cv.pdf"]);
+  });
+
+  test("refuses an archive that carries anything under a private folder, and leaves nothing behind", () => {
+    const r = run("init", "search", "--from", archive({ ...KIT, "profile/profile.md": "a candidate" }));
+    assert.equal(r.rc, 1);
+    assert.match(r.err, /under profile\//);
+    assert.ok(!fs.existsSync(path.join(tmp, "search")));
+  });
+
+  test("refuses an archive that is not a Seekter release", () => {
+    const r = run("init", "search", "--from", archive({ "README.md": "something else" }));
+    assert.equal(r.rc, 1);
+    assert.match(r.err, /does not look like a Seekter release/);
+  });
+
+  test("prints its version and usage, and rejects what it does not know", () => {
+    const pkg = JSON.parse(fs.readFileSync(path.join(REPO, "npm", "package.json"), "utf8"));
+    assert.equal(run("--version").out.trim(), pkg.version);
+    assert.equal(run().rc, 2);
+    assert.equal(run("deploy").rc, 2);
+    assert.equal(run("init", "--bogus").rc, 2);
+  });
+
+  test("the package ships only its own files and depends on nothing", () => {
+    const pkg = JSON.parse(fs.readFileSync(path.join(REPO, "npm", "package.json"), "utf8"));
+    assert.equal(pkg.name, "seekter");
+    assert.deepEqual(pkg.bin, { seekter: "bin/seekter.mjs" });
+    assert.ok(!pkg.dependencies && !pkg.scripts, "no dependencies and no install scripts");
+    assert.deepEqual(pkg.files, ["bin/seekter.mjs", "README.md"]);
+  });
+});
+
 // ----------------------------------------------------------- what a form receives
 
 describe("answer check", () => {

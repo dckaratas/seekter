@@ -1,0 +1,32 @@
+{
+  "name": "seekter",
+  "version": "0.11.0",
+  "description": "Sets up Seekter, the open-source job-search kit for Claude Code: npx seekter init",
+  "type": "module",
+  "bin": {
+    "seekter": "bin/seekter.mjs"
+  },
+  "files": [
+    "bin/seekter.mjs",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT",
+  "author": "Halil İbrahim Çakıroğlu",
+  "homepage": "https://seekter.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/selfishprimate/seekter.git",
+    "directory": "npm"
+  },
+  "bugs": "https://github.com/selfishprimate/seekter/issues",
+  "keywords": [
+    "claude-code",
+    "job-search",
+    "agent",
+    "job-application",
+    "applicant-tracking"
+  ]
+}
