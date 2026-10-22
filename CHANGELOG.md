@@ -4,6 +4,109 @@ The version is the git tag; there is no version file. Each release is also on
 [the releases page](https://github.com/selfishprimate/seekter/releases) with the
 same text.
 
+## v0.9.0 — 22 October 2026
+
+The kit runs on Node instead of Python, it keeps your resume as data that it
+prints and checks, and the resumes it prints now read correctly in an ATS. Plus
+four form systems and two traps learned by applying.
+
+### Python is gone; Node 20 is the one requirement
+
+Every script is ported: `scripts/seekter.mjs`, `freehire_sweep.mjs`,
+`employer_sweep.mjs` and `import_csv.mjs`, with no packages to install. They use
+Node's own `fetch`, so `curl` is no longer needed either. Nothing about your
+data changes, and that was measured before the Python went:
+- 2,447 real job URLs keyed identically.
+- 5,064 lines of command output identical.
+- A 20-step sequence of adds and moves left identical trees.
+- Live sweeps and the CSV import matched byte for byte.
+
+The tests run with `node --test tests/seekter.test.mjs`, and CI runs them on
+Node 20 and 22, on Ubuntu and Windows.
+
+### New: a resume kept as data, one per kind of role
+
+`scripts/resume.mjs` keeps one master resume in
+`profile/resume/json/resume.json`:
+- your facts;
+- a pool of bullets, each tagged and each with an optional one-line `short`
+  version;
+- the resume types you apply with: product designer, design system designer,
+  and so on.
+
+Each type picks its bullets, projects and skills from the pool. It is printed
+by the Chrome already on your machine into `profile/resume/`, in the same
+layout as [seekter.dev](https://seekter.dev)'s resume editor. A resume
+exported from the site renders unchanged.
+
+- **Two pages is the ceiling**, checked on A4 and US Letter
+  (`validate --pages`). A type can say less about older work instead of cutting
+  it: tiers of fewer bullets for older jobs, one closing line for the earliest
+  ones, the short versions, and a compact layout.
+- **`validate` holds the resume to your profile.** Every number has to be in
+  your facts. Dates and titles have to match your work history. Your banned
+  phrases are flagged.
+- **New text is a draft until you approve it.** A PDF that would print a draft
+  is refused, unless you ask for a review copy, which goes to
+  `profile/resume/drafts/` and never to where forms upload from.
+- **A run reprints a resume that is older than its data** before using it.
+- **The tracker records which type went with each application**
+  (`add --resume <type>`), so outcomes can be read per type later.
+
+Without a `resume.json`, nothing changes: the PDF in `profile/documents/` is
+uploaded as before.
+
+### Bold text in a printed resume lost its spaces
+
+The resume printed in Google Fonts' Inter, a variable font. Chrome embeds it as
+Type 3, and text extraction then drops the spaces in bold and semibold text: a
+parser read "LeadProductDesigner" and the headline as one run of words.
+Regular text kept its spaces, which is why it went unnoticed. Measured 21 Oct.
+
+Inter now ships with the kit as static fonts (SIL Open Font License), so
+printing also needs no network. `validate` and every print check the file
+itself: Type 3 fonts, no text layer, or over Greenhouse's 2.5 MB parsing limit.
+
+A real parse on a Lever form (uploaded, read, not submitted) then filled name,
+email, phone, location, company, LinkedIn and GitHub correctly. It never fills
+the portfolio field, whatever the resume says; the note is in
+`reference/ats/lever.md`.
+
+### New: Airtable, iCIMS and Taleo, and Personio's own site
+
+- **Airtable forms:** the resume input only exists inside the Filestack picker
+  that "Attach file" opens.
+- **iCIMS:** the form sits in an iframe that a script can fill but the upload
+  tool cannot reach, so the resume is yours to attach. The email-code session
+  does not carry over to the iframe opened on its own.
+- **Taleo:** every Add or Remove reloads the page. Phone fields can force a US
+  pattern on a non-US number, and the source picker may have no LinkedIn entry.
+- **Personio's own careers site** is an Ashby-backed form that gives every input
+  a new `id` after the resume upload. Address fields by `name`.
+
+### Smaller traps, each measured on a real application
+
+- **Ashby:** the space-then-BackSpace commit deletes the last digit of a
+  `Number` field. A phone number went out one digit short and the first submit
+  silently did nothing. Retype after `cmd+a` instead.
+- **Outlook webmail:** typing while the search box is not focused fires
+  keyboard shortcuts, and one opened a blank compose window (21 Oct). The inbox
+  list is virtualized, so even a quick re-check has to scroll: one read only
+  the top rows and missed a rejection just below them.
+
+### Upgrading
+
+1. Install Node.js 20 or newer (`node --version`). Python and `curl` are no
+   longer used, and you can leave them installed.
+2. If you run the scripts by hand, the commands change from
+   `python3 scripts/<name>.py` to `node scripts/<name>.mjs`. The skills already
+   call the new ones.
+3. Your `profile/`, `applications/` and `runs/` are git-ignored and untouched,
+   and they read exactly as before.
+4. To keep your resume as data, start from
+   `templates/resume/resume.example.json`. The README's resume section walks
+   through it.
+
 ## v0.8.0 — 19 October 2026
 
 LinkedIn rows that can be told to run every time, a form system that used to
