@@ -12,5 +12,12 @@ export async function live(url, net) {
   const m = url.match(/apply\.workable\.com\/([^/?#]+)\/j\/(\w+)/i);
   if (!m) return null;
   const r = await net.status(`https://apply.workable.com/api/v2/accounts/${m[1]}/jobs/${m[2]}`);
-  return r.status === 200 ? "open" : r.status === 404 ? "closed" : null;
+  if (r.status === 404) return "closed";
+  if (r.status !== 200) return null;
+  // The job answers with its state; only "published" takes applications. A state the check
+  // does not know is not proof either way.
+  let d = null;
+  try { d = JSON.parse(r.body); } catch { d = null; }
+  if (!d || d.state === undefined || d.state === "published") return "open";
+  return /^(closed|archived)$/i.test(d.state) ? "closed" : null;
 }

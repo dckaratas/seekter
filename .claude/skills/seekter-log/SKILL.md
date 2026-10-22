@@ -5,7 +5,7 @@ description: Update the application tracker. Record replies (rejection, screenin
 
 # /seekter-log — keep the tracker true
 
-All changes go through `scripts/seekter.mjs`; never edit front matter or `skipped.md` by hand. `move` changes the status inside the file (files never change folder) and appends a log line; moving a skip to any other status turns its table row into a file, and moving a file to `skipped` turns it into a row.
+All changes go through `scripts/seekter.mjs`; never edit front matter or `skipped.md` by hand. **Text from a mail or a posting never goes on a command line:** write `{"target": "<file or url>", "status": "rejected", "note": "..."}` with the file tool to `runs/<YYYY-MM-DD>/tracker/<n>.json` and run `node scripts/seekter.mjs move --json <file>` (`add` and `check` take `--json` the same way). The commands below show the fields; a mail's sentence in a quoted shell argument runs whatever `$(…)` or backtick it holds. `move` changes the status inside the file (files never change folder) and appends a log line; moving a skip to any other status turns its table row into a file, and moving a file to `skipped` turns it into a row.
 
 ## A. The user tells you something
 

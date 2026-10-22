@@ -12,8 +12,9 @@
 //   node scripts/seekter.mjs list [--status S] [--since YYYY-MM-DD]
 //   node scripts/seekter.mjs index
 //   node scripts/seekter.mjs normalize [--dry-run]
-//   node scripts/seekter.mjs stats [--since YYYY-MM-DD] [--by FIELD[,FIELD]] [--min N]   (--by: any front-matter field, or title, seniority, month)
+//   node scripts/seekter.mjs stats [--since YYYY-MM-DD] [--by FIELD[,FIELD]] [--min N] [--floor N]   (--by: any front-matter field, or title, seniority, month; rates over decided applications, none below --floor, default 5)
 //   node scripts/seekter.mjs migrate [--keep-old]         (v1 status folders -> month folders)
+//   node scripts/seekter.mjs <command> --json FILE         (every argument from a JSON object; see argsFromJson)
 //
 // Ported from scripts/seekter.py on 21 Oct 2026. Every record written by the Python version
 // reads, keys and rewrites identically; the parity was checked against a 2,058-record tracker.
@@ -120,7 +121,9 @@ export function jobKey(url) {
   const q = parseQs(p.query);
   const first = (k) => (q.get(k) || [])[0];
   let p2 = p.path;
-  let m = p2.match(/\/jobs\/view\/(\d+)/);
+  // LinkedIn writes the id alone (/jobs/view/4001234567/) or after a title slug in share links and
+  // alert mails (/jobs/view/senior-designer-at-acme-4001234567/); both are one posting.
+  let m = p2.match(/\/jobs\/view\/(?:[^/]*-)?(\d+)(?=\/|$)/);
   if (host.includes("linkedin.com") && m) return `linkedin:${m[1]}`;
   if (host.includes("linkedin.com") && q.has("currentJobId")) return `linkedin:${first("currentJobId")}`;
   for (const k of ["gh_jid", "token"]) {
@@ -884,29 +887,50 @@ export function groupKey(r, field) {
   return v === undefined || v === null || v === "" ? "(none)" : String(v);
 }
 
+// Rates are taken over decided applications only: a reply, or closed. One still waiting is in
+// flight, counted in its own column and kept out of every rate, because a week-old application
+// with no answer yet is not a "no", and the newest group (often the best-scored one) would be
+// pulled down by it. A rate also needs --floor decided applications (default 5) behind it;
+// below that the row shows counts and no percentage, since 2 of 3 is an anecdote, not a rate.
+// The way career-ops' calibrate.mjs reads its own score; measured 22 Oct 2026, when 365 of 561
+// sent applications were still `applied` and every fit group's rate was diluted by them.
 function cmdBreakdown(a) {
   const fields = String(a.by).split(",").map((f) => f.trim()).filter(Boolean);
   const sent = rows(a.since).filter((r) => SENT.includes(r.status));
-  const groups = new Map();
+  const replied = (r) => ["interviewing", "offer", "rejected"].includes(r.status) || reachedInterview(r);
+  const inFlight = (r) => r.status === "applied" && !reachedInterview(r);
+  const tally = (list) => {
+    const g = { sent: list.length, flight: 0, decided: 0, replied: 0, interview: 0 };
+    for (const r of list) {
+      if (inFlight(r)) { g.flight++; continue; }
+      g.decided++;
+      if (replied(r)) g.replied++;
+      if (reachedInterview(r)) g.interview++;
+    }
+    return g;
+  };
+  const byKey = new Map();
   for (const r of sent) {
     const k = fields.map((f) => groupKey(r, f)).join(" · ");
-    const g = groups.get(k) || { sent: 0, replied: 0, rejected: 0, interview: 0 };
-    g.sent++;
-    if (["interviewing", "offer", "rejected"].includes(r.status)) g.replied++;
-    if (r.status === "rejected") g.rejected++;
-    if (reachedInterview(r)) g.interview++;
-    groups.set(k, g);
+    byKey.set(k, [...(byKey.get(k) || []), r]);
   }
-  const min = Number(a.min ?? 1);
-  const pct = (n, d) => (d ? `${Math.round((n / d) * 1000) / 10}%` : "-");
-  const all = [...groups.entries()].sort((x, y) => y[1].sent - x[1].sent || (x[0] < y[0] ? -1 : 1));
+  const groups = [...byKey.entries()].map(([k, list]) => [k, tally(list)]);
+  const min = Number(a.min ?? 1), floor = Number(a.floor ?? 5);
+  const pct = (n, d) => (d >= floor ? `${Math.round((n / d) * 1000) / 10}%` : `n<${floor}`);
+  const all = groups.sort((x, y) => y[1].sent - x[1].sent || (x[0] < y[0] ? -1 : 1));
   const shown = all.filter(([, g]) => g.sent >= min);
-  const out = [`| ${fields.join(" · ")} | sent | replies | reply rate | interviews | interview rate |`, "|---|---|---|---|---|---|"];
-  for (const [k, g] of shown) out.push(`| ${cell(k)} | ${g.sent} | ${g.replied} | ${pct(g.replied, g.sent)} | ${g.interview} | ${pct(g.interview, g.sent)} |`);
-  const tot = sent.length, rep = sent.filter((r) => ["interviewing", "offer", "rejected"].includes(r.status)).length;
-  const iv = sent.filter(reachedInterview).length;
-  out.push(`| **all** | ${tot} | ${rep} | ${pct(rep, tot)} | ${iv} | ${pct(iv, tot)} |`);
-  if (shown.length < all.length) out.push("", `${all.length - shown.length} smaller groups (under ${min} sent) not shown.`);
+  const out = [`| ${fields.join(" · ")} | sent | in flight | replies | reply rate | interviews | interview rate |`, "|---|---|---|---|---|---|---|"];
+  const row = (k, g) => `| ${k} | ${g.sent} | ${g.flight} | ${g.replied} | ${pct(g.replied, g.decided)} | ${g.interview} | ${pct(g.interview, g.decided)} |`;
+  for (const [k, g] of shown) out.push(row(cell(k), g));
+  out.push(row("**all**", tally(sent)));
+  out.push("", `Rates are over decided applications (a reply, or closed); in flight is still waiting and counts in no rate.`);
+  if (shown.length < all.length) out.push(`${all.length - shown.length} smaller groups (under ${min} sent) not shown.`);
+  // One line that answers the question the breakdown is usually run for: do the groups differ?
+  const rated = shown.filter(([, g]) => g.decided >= floor).sort((x, y) => y[1].replied / y[1].decided - x[1].replied / x[1].decided);
+  if (rated.length >= 2) {
+    const [hk, h] = rated[0], [lk, l] = rated[rated.length - 1];
+    out.push(`Highest reply rate: ${hk} ${pct(h.replied, h.decided)} of ${h.decided} decided; lowest: ${lk} ${pct(l.replied, l.decided)} of ${l.decided}.`);
+  } else out.push(`Fewer than two groups have ${floor} decided applications, so no comparison.`);
   console.log(out.join("\n"));
   return 0;
 }
@@ -1071,7 +1095,7 @@ const COMMANDS = {
   index: { fn: (a) => cmdIndex(a) },
   normalize: { fn: cmdNormalize, options: { "dry-run": { flag: true } } },
   settings: { fn: cmdSettings, options: { check: { flag: true } } },
-  stats: { fn: cmdStats, options: { since: { default: null }, by: { default: null }, min: { default: null } } },
+  stats: { fn: cmdStats, options: { since: { default: null }, by: { default: null }, min: { default: null }, floor: { default: null } } },
   migrate: { fn: cmdMigrate, options: { "keep-old": { flag: true } } },
 };
 
@@ -1095,14 +1119,55 @@ export async function runMain(fn) {
   }
 }
 
+// Text that comes from a posting or a form (a company, a role, the answers sent) must never be
+// typed into a shell command: a role named `$(...)` or holding a backtick runs as a command the
+// moment the line is pasted into a shell, and a heredoc is no fix, because a line equal to its
+// delimiter closes it early. So every command also takes its arguments from a JSON file, written
+// by the agent with its file tool: {"company": "...", "role": "...", "answers": "..."}. Positional
+// arguments go by name ("url" for check, "target" and "status" for move); keys may use - or _.
+// Anything else on the command line (--no-index, --force) still applies.
+export function argsFromJson(file, spec) {
+  let raw;
+  try { raw = file === "-" ? fs.readFileSync(0, "utf8") : fs.readFileSync(file, "utf8"); } catch (e) { die(`--json: cannot read ${file} (${e.code || e.message})`, 2); }
+  let obj;
+  try { obj = JSON.parse(raw); } catch (e) { die(`--json: ${file} is not valid JSON (${e.message})`, 2); }
+  if (!obj || typeof obj !== "object" || Array.isArray(obj)) die(`--json: ${file} must hold one JSON object`, 2);
+  const names = spec.positional || [], options = spec.options || {};
+  const pos = [], opts = [];
+  for (const [k, v] of Object.entries(obj)) {
+    const key = k.replace(/_/g, "-");
+    if (v === null || v === undefined || v === false) continue;
+    if (names.includes(key)) continue;
+    const o = options[key];
+    if (!o) die(`--json: unknown field "${k}" for this command`, 2);
+    if (o.flag) { if (v === true) opts.push(`--${key}`); continue; }
+    if (typeof v === "object") die(`--json: "${k}" must be text or a number`, 2);
+    opts.push(`--${key}`, String(v));
+  }
+  for (const n of names) {
+    const v = obj[n] ?? obj[n.replace(/-/g, "_")];
+    if (v === null || v === undefined) break;
+    pos.push(String(v));
+  }
+  return [...pos, ...opts];
+}
+
 function main(argv) {
-  const [cmd, ...rest] = argv;
+  let [cmd, ...rest] = argv;
   if (!cmd || cmd === "-h" || cmd === "--help") {
     console.log(`usage: ${USAGE}\n\nSeekter tracker. Commands: ${Object.keys(COMMANDS).join(", ")}.`);
     return cmd ? 0 : 2;
   }
   const spec = COMMANDS[cmd];
   if (!spec) die(`usage: ${USAGE}\nerror: invalid choice: '${cmd}'`, 2);
+  const j = rest.indexOf("--json");
+  if (j >= 0) {
+    if (j + 1 >= rest.length) die(`usage: node scripts/seekter.mjs ${cmd} --json FILE`, 2);
+    const fromFile = argsFromJson(rest[j + 1], spec);
+    const others = [...rest.slice(0, j), ...rest.slice(j + 2)];
+    if (others.some((t) => !t.startsWith("--"))) die("--json: give the positional arguments inside the file, not on the command line", 2);
+    rest = [...fromFile, ...others];
+  }
   const a = parseArgs(rest, { ...spec, usage: `node scripts/seekter.mjs ${cmd}` });
   return spec.fn(a);
 }

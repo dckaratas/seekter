@@ -23,6 +23,16 @@ const TODAY = sk.isoDate(new Date());
 // ---------------------------------------------------------------- job identity
 
 describe("job identity", () => {
+  test("a LinkedIn link with a title slug keys to the same id as the bare one", () => {
+    // Share links and alert mails write /jobs/view/<title>-<id>; before 22 Oct 2026 that form got
+    // a path key, and samePosting never compares prefixed keys, so the two looked like two jobs.
+    for (const u of ["https://www.linkedin.com/jobs/view/senior-product-designer-at-acme-4001234567/",
+      "https://tr.linkedin.com/jobs/view/senior-product-designer-at-acme-4001234567?trk=public_jobs",
+      "https://www.linkedin.com/jobs/view/4001234567", "https://www.linkedin.com/jobs/search/?currentJobId=4001234567"]) {
+      assert.equal(sk.jobKey(u), "linkedin:4001234567", u);
+    }
+  });
+
   // job_key is the load-bearing field: it is what makes the same posting reached through
   // three different sites one record instead of three.
   test("an empty url has no key", () => {
@@ -584,14 +594,48 @@ describe("tracker", () => {
     add({ company: "D", role: "Product Designer", url: "https://d.com/careers/4444444", status: "skipped", notes: "sector" });
     assert.equal(cli("move", "https://b.com/careers/2222222", "interviewing").rc, 0);
     assert.equal(cli("move", "https://b.com/careers/2222222", "rejected").rc, 0);
-    let r = cli("stats", "--by", "ats");
+    let r = cli("stats", "--by", "ats", "--floor", "1");
     assert.equal(r.rc, 0);
-    assert.match(r.out, /\| ashby \| 2 \| 1 \| 50% \| 1 \| 50% \|/);
-    assert.match(r.out, /\| lever \| 1 \| 1 \| 100% \| 0 \| 0% \|/);
-    assert.match(r.out, /\| \*\*all\*\* \| 3 \| 2 \| 66\.7% \| 1 \| 33\.3% \|/); // the skip is not sent
+    // A is still waiting: in flight, and in no rate. B reached an interview and was rejected.
+    assert.match(r.out, /\| ashby \| 2 \| 1 \| 1 \| 100% \| 1 \| 100% \|/);
+    assert.match(r.out, /\| lever \| 1 \| 0 \| 1 \| 100% \| 0 \| 0% \|/);
+    assert.match(r.out, /\| \*\*all\*\* \| 3 \| 1 \| 2 \| 100% \| 1 \| 50% \|/); // the skip is not sent
+    // Below the default floor of 5 decided applications a row gives counts and no rate.
+    r = cli("stats", "--by", "ats");
+    assert.match(r.out, /\| ashby \| 2 \| 1 \| 1 \| n<5 \| 1 \| n<5 \|/);
+    assert.match(r.out, /no comparison/);
     r = cli("stats", "--by", "title,seniority");
     assert.match(r.out, /\| product designer · senior \| 1 \|/);
     assert.match(r.out, /\| product designer · none \| 1 \|/);
+  });
+
+  // Posting text in a quoted shell argument runs whatever $(...) or backtick it holds, so every
+  // command also reads its arguments from a JSON file the agent writes with its file tool.
+  test("--json takes every argument from a file and stores hostile text verbatim", () => {
+    const j = (name, obj) => { const f = path.join(tmp, name); fs.writeFileSync(f, JSON.stringify(obj)); return f; };
+    const role = "Designer $(touch pwned) `id` \"quoted\"";
+    const r = cli("add", "--json", j("a.json", { company: "Acme", role, status: "applied", url: "https://jobs.example.com/acme/123456",
+      fit: 4, answers: "It's $HOME; keep it", no_index: true }));
+    assert.equal(r.rc, 0, r.err);
+    const file = path.join(tmp, r.out.trim());
+    const text = fs.readFileSync(file, "utf8");
+    assert.ok(text.includes(`role: ${role}`) || text.includes(role), text);
+    assert.ok(text.includes("It's $HOME; keep it"));
+    assert.ok(!fs.existsSync(path.join(tmp, "pwned")));
+    assert.equal(cli("check", "--json", j("c.json", { url: "https://jobs.example.com/acme/123456", company: "Acme" })).rc, 1);
+    const m = cli("move", "--json", j("m.json", { target: file, status: "rejected", note: "said \"no\" $(whoami)" }));
+    assert.equal(m.rc, 0, m.err);
+    assert.match(fs.readFileSync(file, "utf8"), /rejected\. said "no" \$\(whoami\)/);
+  });
+
+  test("--json refuses unknown fields, broken JSON and positionals on the command line", () => {
+    const f = path.join(tmp, "x.json");
+    fs.writeFileSync(f, JSON.stringify({ company: "A", role: "B", colour: "red" }));
+    assert.match(cli("add", "--json", f).err, /unknown field "colour"/);
+    fs.writeFileSync(f, "{not json");
+    assert.match(cli("add", "--json", f).err, /not valid JSON/);
+    fs.writeFileSync(f, JSON.stringify({ status: "rejected" }));
+    assert.equal(cli("move", "somefile.md", "--json", f).rc, 2);
   });
 
   test("add takes a fit score from 1 to 5 and refuses anything else", () => {
@@ -834,7 +878,7 @@ describe("live check", () => {
       "https://job-boards.greenhouse.io/acme/jobs/111", "https://job-boards.greenhouse.io/acme/jobs/222",
       "https://jobs.ashbyhq.com/acme/11111111-1111-1111-1111-111111111111", "https://jobs.ashbyhq.com/acme/22222222-2222-2222-2222-222222222222",
       "https://jobs.acme.example/jobs/9-gone", "https://careers.other.example/jobs/9-gone",
-      "https://www.linkedin.com/jobs/view/4479615109/"], { env: http.env });
+      "https://www.linkedin.com/jobs/view/4001234567/"], { env: http.env });
     assert.equal(r.rc, 0, r.err);
     assert.match(r.out, /^OPEN +https:\/\/job-boards\.greenhouse\.io\/acme\/jobs\/111 +\(greenhouse\)/m);
     assert.match(r.out, /^CLOSED +https:\/\/job-boards\.greenhouse\.io\/acme\/jobs\/222/m);
@@ -845,6 +889,39 @@ describe("live check", () => {
     assert.match(r.out, /^UNKNOWN +https:\/\/careers\.other\.example/m);
     assert.match(r.out, /^UNKNOWN +https:\/\/www\.linkedin\.com.*never called/m);
     assert.ok(!http.urls().some((u) => u.includes("linkedin")));
+  });
+
+  // Signals a bare 200 or 404 misses: a confidential Lever posting 404s on the public API while
+  // open, a SmartRecruiters posting can answer 200 inactive, a withdrawn Workday posting 403s
+  // with S22, and a Workable job carries its state.
+  test("each system's own closed signal decides, and a bare 404 on Lever asks the job page", () => {
+    const L = "33333333-3333-3333-3333-333333333333", G = "44444444-4444-4444-4444-444444444444";
+    const net = fakeHttp(tmp, [
+      [`api.lever.co/v0/postings/acme/${L}`, { status: 404, body: '{"ok":false}' }],
+      [`jobs.lever.co/acme/${L}`, { status: 200, body: "<html>apply</html>" }],
+      [`api.lever.co/v0/postings/acme/${G}`, { status: 404, body: '{"ok":false}' }],
+      [`jobs.lever.co/acme/${G}`, { status: 404, body: "" }],
+      ["companies/Acme1/postings/111", { status: 200, body: '{"id":"111","active":false}' }],
+      ["companies/Acme1/postings/222", { status: 200, body: '{"id":"222","active":true}' }],
+      ["/wday/cxs/acme/External/job/Berlin/Designer_R1", { status: 403, body: '{"errorCode":"S22","httpStatus":403}' }],
+      ["/wday/cxs/acme/External/job/Berlin/Designer_R2", { status: 403, body: '{"errorCode":"S99"}' }],
+      ["api/v2/accounts/acme/jobs/AAA111", { status: 200, body: '{"state":"archived"}' }],
+      ["api/v2/accounts/acme/jobs/BBB222", { status: 200, body: '{"state":"published"}' }],
+    ], { status: 500, body: "" });
+    const r = runIn(tmp, "live.mjs", [
+      `https://jobs.lever.co/acme/${L}`, `https://jobs.lever.co/acme/${G}`,
+      "https://jobs.smartrecruiters.com/Acme1/111-designer", "https://jobs.smartrecruiters.com/Acme1/222-designer",
+      "https://acme.wd3.myworkdayjobs.com/External/job/Berlin/Designer_R1", "https://acme.wd3.myworkdayjobs.com/External/job/Berlin/Designer_R2",
+      "https://apply.workable.com/acme/j/AAA111", "https://apply.workable.com/acme/j/BBB222"], { env: net.env });
+    assert.equal(r.rc, 0, r.err);
+    assert.match(r.out, new RegExp(`^OPEN +https://jobs\\.lever\\.co/acme/${L} +\\(lever\\)`, "m"));
+    assert.match(r.out, new RegExp(`^CLOSED +https://jobs\\.lever\\.co/acme/${G}`, "m"));
+    assert.match(r.out, /^CLOSED +https:\/\/jobs\.smartrecruiters\.com\/Acme1\/111/m);
+    assert.match(r.out, /^OPEN +https:\/\/jobs\.smartrecruiters\.com\/Acme1\/222/m);
+    assert.match(r.out, /^CLOSED +https:\/\/acme\.wd3\.myworkdayjobs\.com\/External\/job\/Berlin\/Designer_R1/m);
+    assert.match(r.out, /^UNKNOWN +https:\/\/acme\.wd3\.myworkdayjobs\.com\/External\/job\/Berlin\/Designer_R2/m);
+    assert.match(r.out, /^CLOSED +https:\/\/apply\.workable\.com\/acme\/j\/AAA111/m);
+    assert.match(r.out, /^OPEN +https:\/\/apply\.workable\.com\/acme\/j\/BBB222/m);
   });
 
   test("a single closed posting exits 3", () => {
@@ -969,13 +1046,25 @@ describe("answer check", () => {
 
   test("dates, years, links, salary answers and the posting's own numbers are not claims", () => {
     const text = "Available from 3 Nov 2026, or 2026-11-03 at 10:00. Since 2015. See https://example.com/job/123456. " +
-      "Salary: EUR 72,000 gross per year (GBP 3,900 a month), or 55,000 to 60,000 euros. The 5-minute video and your 250 stores.";
+      "Salary: EUR 64,000 gross per year (GBP 3,700 a month), or 50,000 to 58,000 euros. The 5-minute video and your 250 stores.";
     const without = check(text);
     assert.equal(without.rc, 1);
     assert.match(without.out, /"250"/);
     fs.writeFileSync(path.join(tmp, "posting.txt"), "We run 250 stores across Europe.");
     const r = check(text, "--posting", path.join(tmp, "posting.txt"));
     assert.equal(r.rc, 0, r.out);
+  });
+
+  test("a money figure outside a salary answer is a claim, magnitude and all", () => {
+    // The first version skipped every amount with a currency, so "$2M → $5M" passed as a salary.
+    const r = check("We grew revenue from $2M to $5M and saved EUR 40,000 a year. Salary: EUR 64,000 gross.");
+    assert.equal(r.rc, 1);
+    assert.match(r.out, /"2M"/);
+    assert.match(r.out, /"5M"/);
+    assert.match(r.out, /"40,000"/);
+    assert.doesNotMatch(r.out, /"64,000"/);
+    // A question and its answer are one field, so the answer after "salary expectations?" is salary.
+    assert.equal(check("What are your salary expectations? -> 64000 (EUR annual).").rc, 0);
   });
 
   test("banned phrases and long dashes are flagged", () => {

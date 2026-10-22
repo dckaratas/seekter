@@ -21,10 +21,15 @@ export default async function board(slug, net) {
 }
 
 // Is one posting still open? The posting endpoint answers 404 once it is gone; other errors
-// (a mistyped company id answers 400) say nothing.
+// (a mistyped company id answers 400) say nothing. A posting can also still answer 200 with
+// "active": false, so the flag decides when it is there.
 export async function live(url, net) {
   const m = url.match(/jobs\.smartrecruiters\.com\/([^/?#]+)\/(\d+)/i);
   if (!m) return null;
   const r = await net.status(`https://api.smartrecruiters.com/v1/companies/${m[1]}/postings/${m[2]}`);
-  return r.status === 200 ? "open" : r.status === 404 ? "closed" : null;
+  if (r.status === 404) return "closed";
+  if (r.status !== 200) return null;
+  let d = null;
+  try { d = JSON.parse(r.body); } catch { d = null; }
+  return d && d.active === false ? "closed" : "open";
 }

@@ -20,7 +20,7 @@ Ask only for what cannot be found. From the user, or from the invitation mail (`
 
 No record for the company: it is an application missing from the tracker. Add it the way `/seekter-log` does (`check` first) before preparing.
 
-Then move the record to `interviewing` with the stage, date and interviewer if it is not there yet (`node scripts/seekter.mjs move <file> interviewing --note "<stage, date, who>"`). Scheduling, confirming and rescheduling are the candidate's: never answer the invitation, never pick a slot in a scheduling link.
+Then move the record to `interviewing` with the stage, date and interviewer if it is not there yet (`node scripts/seekter.mjs move --json <file>` with `{"target": "<record>", "status": "interviewing", "note": "<stage, date, who>"}` written by the file tool; the invitation's text never goes on a command line). Scheduling, confirming and rescheduling are the candidate's: never answer the invitation, never pick a slot in a scheduling link.
 
 ## 1. Read before writing (all of it, every time)
 
