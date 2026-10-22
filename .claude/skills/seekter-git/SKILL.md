@@ -161,6 +161,14 @@ gh release view v<x.y.z> --json assets --jq '.assets[].name'
 curl -sIL -o /dev/null -w '%{http_code}\n' https://github.com/<owner>/seekter/releases/latest/download/seekter.zip
 ```
 
+6. **npm is the maintainer's step, not this skill's.** The `seekter` package on npm
+   belongs to one account and publishing needs that account's own sign-in, so
+   never run `npm publish`, and on a fork skip npm entirely. When the user is the
+   package's maintainer and asks for it, follow "Releasing (maintainers)" in
+   CONTRIBUTING.md: raise `npm/package.json` to the new version, run
+   `node npm/sync-readme.mjs` and the tests, commit, and hand them the publish
+   command.
+
 ## 7. Guardrails
 
 - **Never commit `profile/`, `applications/` or `runs/`**, and never weaken `.gitignore` to make something pass. If a reference note cannot be written without a private value, the note is wrong, not the rule.
