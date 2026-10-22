@@ -10,7 +10,8 @@
 //           profile/profile.md (identity, standard answers, salary bands, fact bank), the files
 //           those sections point to by path (`profile/...`), and profile/resume/json/resume.json.
 //           Dates, times, years, single digits and URLs are not claims, and neither is a salary
-//           answer: it is worked out from the band table, which has its own rule. A number the
+//           answer (a sentence or field that names salary, pay, a rate or a band): it is worked
+//           out from the band table, which has its own rule. Any other money figure is checked. A number the
 //           posting itself gives (its "5-minute video") passes when the posting is passed as --posting.
 //   voice   a banned phrase from the profile's voice section, or a long dash.
 //   repeat  a sentence of eight words or more already sent to another company, from the
@@ -39,16 +40,19 @@ export function withoutDates(text) {
 }
 
 // A salary answer is worked out from the band table (a year from a month, one currency from
-// another), so its numbers are not in the facts and are not claims either: an amount with a
-// currency, and any number in the sentence or form field that names a salary or a rate. Codes
-// are matched in capitals only, so "try 30 variants" stays a claim.
-const CURRENCY = "(?:EUR|USD|GBP|CAD|CHF|DKK|SEK|NOK|PLN|CZK|TRY|AUD|NZD|CA\\$|US\\$|[€$£₺])";
-const AMOUNT = "\\d[\\d,.]*\\s?[km]?";
+// another), so its numbers are not in the facts and are not claims either. What counts as a
+// salary answer is the sentence or form field that says so: "Salary: EUR 64,000", "expected
+// compensation 4,800 per month", "salary expectations? -> 64000 (EUR annual, top of the band)".
+// A money figure anywhere else ("cut costs by $2M a year") is a claim like any other number.
+// The first version skipped every amount with a currency, and a made-up "$2M → $5M" passed.
+const SALARY = /salary|compensation|remuneration|\bpay\b|expect|\brate\b|\bband\b|\bgross\b|\bnet\b|\bbase\b|\bctc\b|\bwage/i;
 export function withoutSalary(text) {
+  // Fields are split on newlines, | and ;, sentences on . and ! (not ?, so a question and the
+  // answer after it stay one field).
   return String(text ?? "")
-    .replace(new RegExp(`${CURRENCY}\\s?${AMOUNT}(?:\\s?(?:-|–|to)\\s?${CURRENCY}?\\s?${AMOUNT})?`, "g"), " ")
-    .replace(new RegExp(`${AMOUNT}(?:\\s?(?:-|–|to)\\s?${AMOUNT})?\\s?(?:\\(?${CURRENCY}\\b|(?:euros?|dollars?|pounds?|kroner|kronor|zloty|lira)\\b)`, "g"), " ")
-    .split(/(\n|\||;|(?<=[.!?])\s+)/).map((part) => /salary|compensation|pay expectation|(hourly|daily|day|monthly) rate/i.test(part) ? part.replace(/\d/g, " ") : part).join("");
+    .split(/(\n|\||;|(?<=[.!])\s+)/)
+    .map((part) => (SALARY.test(part) ? part.replace(/\d/g, " ") : part))
+    .join("");
 }
 
 // The facts a text may draw on: the profile, the files its fact sections name, the master resume.

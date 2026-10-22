@@ -183,8 +183,10 @@ export function draftsIn(master, name) {
 const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
 export const norm = (s) => String(s ?? "").toLowerCase().replace(/[–—]/g, "-").replace(/×/g, "x").replace(/\s+/g, " ");
 
-// Every number a reader could check: 870, 50+, 15-20, 1,500, 2-3x, 5-10.
-const NUMBER = /\d[\d,.]*(?:\s?[-–]\s?\d[\d,.]*)?\s?(?:%|\+|x|×)?/g;
+// Every number a reader could check: 870, 50+, 15-20, 1,500, 2-3x, 5-10, and amounts with a
+// magnitude, $2M, 5k, 1.5 billion: without the suffix "$2M" read as a bare 2, and single digits
+// are not checked, so a made-up "$2M → $5M" passed.
+const NUMBER = /\d[\d,.]*(?:\s?[-–]\s?\d[\d,.]*)?(?:\s?(?:million|billion|thousand)\b|(?:k|m|bn)\b)?\s?(?:%|\+|x|×)?/gi;
 
 export function numbersIn(text) {
   return [...new Set((text.match(NUMBER) || []).map((n) => n.trim().replace(/[.,]$/, "")).filter((n) => /\d/.test(n)))];
@@ -196,7 +198,8 @@ export function numbersIn(text) {
 // like "12" or "40" is almost always somewhere in it. A text with none of those sections is read
 // whole (a posting, an older profile). Ranges also count by their ends: "5-10" covers 5 and 10.
 const FACT_SECTIONS = /^##\s*(?:\d+\.\s*)?(identity|standard answers|salary|fact bank)/i;
-const numKey = (n) => norm(n).replace(/,(?=\d{3})/g, "").replace(/\s/g, "");
+const numKey = (n) => norm(n).replace(/,(?=\d{3})/g, "").replace(/\s/g, "")
+  .replace(/million$/, "m").replace(/billion$/, "bn").replace(/thousand$/, "k");
 export function factsOf(text, { sections = true } = {}) {
   let src = String(text ?? "");
   if (sections) {

@@ -32,5 +32,9 @@ export async function live(url, net) {
   if (!m) return null;
   const [, tenant, wd, site, jobPath] = m;
   const r = await net.status(`https://${tenant}.${wd}.myworkdayjobs.com/wday/cxs/${tenant}/${site}${jobPath}`);
-  return r.status === 200 ? "open" : r.status === 404 ? "closed" : null;
+  if (r.status === 200) return "open";
+  if (r.status === 404) return "closed";
+  // A withdrawn posting answers 403 with errorCode "S22"; any other 403 says nothing.
+  if (r.status === 403 && /"errorCode"\s*:\s*"S22"/.test(r.body)) return "closed";
+  return null;
 }

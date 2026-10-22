@@ -24,7 +24,7 @@ The useful work is filling forms, not finding postings, so Seekter treats Linked
 The user's own job alerts, delivered **by email**, arrive in the inbox without anyone touching LinkedIn. Seekter reads the mail, not the site.
 
 1. **Read the alert mails** with the method in `inbox.md`. From each card take the company, the title, the location line and the job id (the number in the `/jobs/view/<id>` href, read from the mail's HTML, never by opening the link).
-2. **Dedup on the id first:** `node scripts/seekter.mjs check "https://www.linkedin.com/jobs/view/<id>/" --company "<company>"`. Writing the URL as a string is how `check` keys it (`linkedin:<id>`); it is not opened. A bare number is only normalised by `check-many`, not by `check`, and passes as new. Most records are keyed on the employer's apply URL, so the id check is the cheap first filter and step 4's check on the apply URL is the real one.
+2. **Dedup on the id first:** `node scripts/seekter.mjs check --json <file>` with `{"url": "https://www.linkedin.com/jobs/view/<id>/", "company": "<company>"}` (the company name comes from the mail, so it goes in a file, not on the command line). Writing the URL as a string is how `check` keys it (`linkedin:<id>`); it is not opened. A bare number is only normalised by `check-many`, not by `check`, and passes as new. Most records are keyed on the employer's apply URL, so the id check is the cheap first filter and step 4's check on the apply URL is the real one.
 3. **Resolve the employer's own posting off LinkedIn.** Probe the public board APIs, matching the title:
    - `boards-api.greenhouse.io/v1/boards/<co>/jobs`
    - `api.ashbyhq.com/posting-api/job-board/<co>`
