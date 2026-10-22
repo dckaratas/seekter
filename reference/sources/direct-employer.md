@@ -1,6 +1,6 @@
 # Direct employer sources
 
-## The watchlist: `python3 scripts/employer_sweep.py`
+## The watchlist: `node scripts/employer_sweep.mjs`
 
 Most product companies publish their job board as open JSON through their applicant tracking system. Reading it directly sees a posting the day it opens, with the employer's own location line, before any aggregator copies it and before LinkedIn shows it to everyone. No login, no browser, no terms to click.
 

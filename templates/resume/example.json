@@ -1,0 +1,254 @@
+{
+  "header": {
+    "full_name": "Jonathan Doe",
+    "role": "Product Designer",
+    "location": "Berlin, Germany",
+    "email": "jonathan.doe@example.com",
+    "phone": "+49 (30) 1234 5678",
+    "links": [
+      {
+        "id": "sample-link-portfolio",
+        "label": "Portfolio",
+        "url": "https://jonathandoe.example.com"
+      },
+      {
+        "id": "sample-link-linkedin",
+        "label": "LinkedIn",
+        "url": "https://linkedin.example.com/in/jonathandoe"
+      },
+      {
+        "id": "sample-link-dribbble",
+        "label": "Dribbble",
+        "url": "https://dribbble.example.com/jonathandoe"
+      }
+    ]
+  },
+  "summary": "Product designer with 8 years shipping data-heavy B2B products end to end — discovery, interaction design, and the design system work that keeps it all consistent. I like problems where the interface has to make something genuinely complicated feel obvious, and I measure my work by what changes after it ships.",
+  "experience": [
+    {
+      "id": "sample-exp-northwind",
+      "company": "Northwind Labs",
+      "role": "Senior Product Designer",
+      "location": "Berlin, Germany",
+      "remote": true,
+      "url": "https://northwind.example.com",
+      "start": "2022-03",
+      "end": "",
+      "description": "Analytics platform for logistics teams, ~40k weekly active users.",
+      "bullets": [
+        {
+          "text": "Redesigned the shipment tracking dashboard around a single timeline view, cutting the median time to answer \"where is my order\" from 90 seconds to 12."
+        },
+        {
+          "text": "Built and documented a 60-component design system with two engineers; new feature work now ships without bespoke UI in roughly 80% of cases."
+        },
+        {
+          "text": "Ran a 14-interview discovery study with warehouse operators that killed a planned feature and redirected the quarter toward bulk editing, which became the most-used release of the year."
+        },
+        {
+          "text": "Mentored two junior designers through their first end-to-end features, both now shipping independently."
+        }
+      ]
+    },
+    {
+      "id": "sample-exp-curio",
+      "company": "Curio",
+      "role": "Product Designer",
+      "location": "Amsterdam, Netherlands",
+      "remote": false,
+      "url": "https://curio.example.com",
+      "start": "2019-06",
+      "end": "2022-02",
+      "description": "Subscription commerce startup, seed to Series B.",
+      "bullets": [
+        {
+          "text": "Owned checkout end to end across web and mobile web; reduced cart abandonment by 18% over two quarters through progressive disclosure and clearer shipping costs."
+        },
+        {
+          "text": "Introduced weekly usability testing on a shoestring — five sessions, every Thursday — which caught three launch-blocking issues in the first month."
+        },
+        {
+          "text": "Partnered with the growth team on 20+ A/B tests, designing variants that stayed inside the brand system instead of one-off landing pages."
+        }
+      ]
+    },
+    {
+      "id": "sample-exp-brightharbor",
+      "company": "Bright Harbor Studio",
+      "role": "UI Designer",
+      "location": "Rotterdam, Netherlands",
+      "remote": false,
+      "start": "2017-09",
+      "end": "2019-05",
+      "bullets": [
+        {
+          "text": "Designed marketing sites and product interfaces for eight client engagements, from first wireframe through developer handoff."
+        },
+        {
+          "text": "Standardised the studio's handoff process around annotated component specs, which cut back-and-forth with client engineers noticeably on every project after it."
+        }
+      ]
+    }
+  ],
+  "education": [
+    {
+      "id": "sample-edu-1",
+      "school": "Delft University of Technology",
+      "degree": "MSc, Design for Interaction",
+      "start": "2015",
+      "end": "2017",
+      "note": "Thesis on decision-making interfaces for time-critical work."
+    }
+  ],
+  "skills": [
+    {
+      "id": "sample-skill-design",
+      "group": "Design",
+      "items": [
+        "Interaction design",
+        "Design systems",
+        "Design tokens",
+        "Prototyping",
+        "Information architecture",
+        "Wireframing",
+        "Responsive & mobile web",
+        "Motion & micro-interactions",
+        "Data visualisation",
+        "Accessibility (WCAG 2.2 AA)"
+      ]
+    },
+    {
+      "id": "sample-skill-research",
+      "group": "Research",
+      "items": [
+        "User interviews",
+        "Usability testing (moderated & unmoderated)",
+        "Diary studies",
+        "Survey design",
+        "Journey mapping",
+        "Competitive analysis",
+        "A/B test design",
+        "Analytics-informed design"
+      ]
+    },
+    {
+      "id": "sample-skill-tools",
+      "group": "Tools",
+      "items": [
+        "Figma",
+        "FigJam",
+        "Framer",
+        "Storybook",
+        "Maze",
+        "Dovetail",
+        "Linear",
+        "HTML & CSS",
+        "Basic React",
+        "Git basics"
+      ]
+    },
+    {
+      "id": "sample-skill-collaboration",
+      "group": "Ways of working",
+      "items": [
+        "Design critique facilitation",
+        "Workshop facilitation",
+        "Developer handoff & spec writing",
+        "Mentoring",
+        "Roadmap and scoping conversations",
+        "Working in dual-track agile"
+      ]
+    }
+  ],
+  "projects": [
+    {
+      "id": "sample-project-fieldnotes",
+      "name": "Fieldnotes",
+      "url": "https://fieldnotes.example.com",
+      "tagline": "Offline-first note app for site inspectors",
+      "start": "2023",
+      "end": "",
+      "description": "Side project, ~2k users. Designed and shipped the whole thing, including the sync-conflict flow that turned out to be the hardest screen I have ever drawn. Also wrote the CSS, which is why the animations are restrained."
+    },
+    {
+      "id": "sample-project-density",
+      "name": "Density",
+      "url": "https://density.example.com",
+      "tagline": "Figma plugin that audits spacing against your token scale",
+      "start": "2022",
+      "end": "2023",
+      "description": "Open-source, ~4k installs. Scans a file for off-scale spacing values and offers one-click fixes. Built it after losing an afternoon to a 13px gap nobody could find."
+    },
+    {
+      "id": "sample-project-teardowns",
+      "name": "Interface Teardowns",
+      "url": "https://teardowns.example.com",
+      "tagline": "Weekly written analysis of one B2B interface",
+      "start": "2021",
+      "end": "2024",
+      "description": "120 issues, ~1,800 subscribers. Writing one teardown a week did more for my critique vocabulary than any course, and two of the essays became internal reading at Northwind."
+    },
+    {
+      "id": "sample-project-atlas",
+      "name": "Atlas (community project)",
+      "url": "https://atlas.example.com",
+      "tagline": "Volunteer redesign of a food-bank scheduling tool",
+      "start": "2020",
+      "end": "2021",
+      "description": "Rebuilt the volunteer shift signup with two engineers, pro bono. Cut the signup flow from nine screens to three; no-show rate dropped by roughly a third over the following season."
+    }
+  ],
+  "certifications": [
+    {
+      "id": "sample-cert-was",
+      "name": "Web Accessibility Specialist (WAS)",
+      "issuer": "IAAP",
+      "year": "2024"
+    },
+    {
+      "id": "sample-cert-cpacc",
+      "name": "Certified Professional in Accessibility Core Competencies (CPACC)",
+      "issuer": "IAAP",
+      "year": "2023"
+    },
+    {
+      "id": "sample-cert-nng",
+      "name": "UX Certification — Interaction Design specialty",
+      "issuer": "Nielsen Norman Group",
+      "year": "2021"
+    },
+    {
+      "id": "sample-cert-research",
+      "name": "Foundations of User Research",
+      "issuer": "Interaction Design Foundation",
+      "year": "2019"
+    }
+  ],
+  "languages": [
+    {
+      "id": "sample-lang-en",
+      "name": "English",
+      "proficiency": "Fluent"
+    },
+    {
+      "id": "sample-lang-nl",
+      "name": "Dutch",
+      "proficiency": "Conversational"
+    },
+    {
+      "id": "sample-lang-de",
+      "name": "German",
+      "proficiency": "Basic"
+    }
+  ],
+  "sectionOrder": [
+    "summary",
+    "experience",
+    "projects",
+    "education",
+    "skills",
+    "certifications",
+    "languages"
+  ],
+  "hiddenSections": []
+}

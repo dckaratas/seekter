@@ -1,9 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python3 scripts/seekter.py:*)",
-      "Bash(python3 scripts/freehire_sweep.py:*)",
-      "Bash(python3 scripts/import_csv.py:*)",
+      "Bash(node scripts/seekter.mjs:*)",
+      "Bash(node scripts/freehire_sweep.mjs:*)",
+      "Bash(node scripts/employer_sweep.mjs:*)",
+      "Bash(node scripts/import_csv.mjs:*)",
+      "Bash(node scripts/resume.mjs:*)",
       "Bash(curl -sS:*)",
       "Read(./profile/**)",
       "Read(./reference/**)",
