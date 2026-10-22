@@ -222,9 +222,7 @@ Node 20 and 22, on Ubuntu and Windows.
   and so on.
 
 Each type picks its bullets, projects and skills from the pool. It is printed
-by the Chrome already on your machine into `profile/resume/`, in the same
-layout as [seekter.dev](https://seekter.dev)'s resume editor. A resume
-exported from the site renders unchanged.
+by the Chrome already on your machine into `profile/resume/`.
 
 - **Two pages is the ceiling**, checked on A4 and US Letter
   (`validate --pages`). A type can say less about older work instead of cutting
