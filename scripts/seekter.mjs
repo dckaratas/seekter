@@ -577,6 +577,28 @@ function bareIdToUrl(url) {
 }
 
 // ---------- commands ----------
+// The same posting under a different URL on the same site. jobKey stays as it is, because
+// 2,000 stored keys depend on it; this is a second look at keys that did not match exactly.
+// Measured 22 Oct 2026: a careers site's posting was tracked as ".../job/P-100931/<title-slug>"
+// and came back from LinkedIn as ".../job/P-100931/<title-slug cut short>", passed `check` as
+// NEW and had its form opened again. Two signals, both on the same host only: one path is the
+// other cut short (a slug truncated by whoever passed the link on), or both carry the same
+// posting id, a run of five or more digits with an optional short letter prefix ("P-100931",
+// "_261413-1").
+const postingIds = (key) => new Set([...key.split("/").slice(1).join("/").matchAll(/(?:^|[/_-])([a-z]{0,3}-?\d{5,})(?=$|[/_-])/gi)]
+  .map((m) => m[1].toLowerCase().replace(/^[a-z]{0,3}-?/, (x) => x.replace("-", ""))));
+export function samePosting(key, other) {
+  if (!key || !other || key === other || !key.includes("/") || !other.includes("/")) return "";
+  if (/^[a-z]+:/.test(key) || /^[a-z]+:/.test(other)) return ""; // linkedin:, uuid:, greenhouse:… are exact by design
+  const host = (k) => k.slice(0, k.indexOf("/"));
+  if (host(key) !== host(other)) return "";
+  const [short, long] = key.length <= other.length ? [key, other] : [other, key];
+  if (long.startsWith(short) && short.length >= host(short).length + 15) return "a shortened copy of the same URL";
+  const mine = postingIds(key);
+  for (const id of postingIds(other)) if (mine.has(id)) return `the same posting id (${id})`;
+  return "";
+}
+
 function cmdCheck(a) {
   const key = jobKey(bareIdToUrl(a.url));
   const same = [], company = [];
@@ -584,8 +606,15 @@ function cmdCheck(a) {
     if (key && (r.job_key === key || jobKey(r.url || "") === key)) same.push(r);
     else if (a.company && sameCompany(a.company, r.company || "")) company.push(r);
   }
+  let why = "";
+  if (!same.length) {
+    for (const r of allApps()) {
+      const w = samePosting(key, r.job_key || jobKey(r.url || ""));
+      if (w) { same.push(r); why = why || w; }
+    }
+  }
   if (same.length) {
-    console.log("DUPLICATE: this posting is already tracked");
+    console.log("DUPLICATE: this posting is already tracked" + (why ? ` (same posting under another URL: ${why})` : ""));
     for (const r of same) console.log(`  ${pyStr(r.status)} | ${pyStr(r.company)} | ${pyStr(r.role)} | ${label(r)}`);
     return 1;
   }
@@ -616,9 +645,11 @@ function cmdCheckMany() {
     let url = (bar >= 0 ? line.slice(0, bar) : line).trim();
     const co = bar >= 0 ? line.slice(bar + 1).trim() : "";
     url = bareIdToUrl(url);
-    const r = keys.get(jobKey(url));
+    const key = jobKey(url);
+    let r = keys.get(key), why = "";
+    if (!r) for (const [k, x] of keys) { why = samePosting(key, k); if (why) { r = x; break; } }
     if (r) {
-      console.log(`DUP    ${line} -> ${pyStr(r.status)} ${label(r)}`);
+      console.log(`DUP    ${line} -> ${pyStr(r.status)} ${label(r)}` + (why ? ` (${why})` : ""));
       continue;
     }
     const same = apps.filter((x) => co && sameCompany(co, x.company || ""));
@@ -637,7 +668,11 @@ function cmdAdd(a) {
   if (present(a.fit) && !/^[1-5]$/.test(String(a.fit).trim())) die(`fit must be a whole number from 1 to 5, got "${a.fit}"`);
   const key = jobKey(a.url || "");
   if (key && !a.force) {
-    for (const r of allApps()) if (r.job_key === key) die(`DUPLICATE: ${label(r)} (use --force to add anyway)`);
+    for (const r of allApps()) {
+      if (r.job_key === key) die(`DUPLICATE: ${label(r)} (use --force to add anyway)`);
+      const why = samePosting(key, r.job_key || "");
+      if (why) die(`DUPLICATE: ${label(r)}, ${why} (use --force to add anyway)`);
+    }
   }
   const today = a.date || TODAY;
   const meta = { company: a.company, role: a.role, status: a.status, url: a.url, source: a.source, ats: a.ats,

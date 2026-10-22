@@ -412,6 +412,25 @@ describe("tracker", () => {
     assert.match(r.out, /same_company_days/);
   });
 
+  test("check catches the same posting under a shortened URL or the same posting id", () => {
+    add({ company: "Medco", role: "Senior UI Designer", status: "pending",
+      url: "https://careers.medco.example/global/en/job/P-100931/Senior-UI-Designer-for-medical-software-products" });
+    add({ company: "Wdco", role: "Lead Product Designer", status: "applied",
+      url: "https://wdco.wd5.myworkdayjobs.com/en-US/External/job/Hungary--Budapest/Lead-Product-Designer_261413-1" });
+    // The slug cut short by whoever passed the link on.
+    let r = cli("check", "https://careers.medco.example/global/en/job/P-100931/Senior-UI-Designer-for-medical-software-");
+    assert.equal(r.rc, 1);
+    assert.match(r.out, /DUPLICATE: .*same posting under another URL: a shortened copy/);
+    // The same requisition id behind a different path.
+    r = cli("check", "https://wdco.wd5.myworkdayjobs.com/External/job/Budapest/Lead-Product-Designer_261413-1/apply");
+    assert.equal(r.rc, 1);
+    assert.match(r.out, /the same posting id \(261413\)/);
+    // A different id on the same site is a different posting.
+    assert.equal(cli("check", "https://careers.medco.example/global/en/job/P-100932/Senior-UI-Designer").rc, 0);
+    r = cliIn("https://careers.medco.example/global/en/job/P-100931/Senior-UI-Designer-for-medical\n", "check-many");
+    assert.match(r.out, /^DUP .*a shortened copy/m);
+  });
+
   test("check reads a bare number as a LinkedIn id", () => {
     // Measured 4 Oct: `check <a bare LinkedIn id>` keyed the number as is and passed a
     // tracked LinkedIn job as new; only `check-many` normalised it.
