@@ -130,4 +130,13 @@ A reference change can't be unit-tested. Test it by doing the thing it describes
 2. Read your own diff before describing it.
 3. Fill in the pull request template. It asks what you measured and when, because that is the part a reviewer cannot check for you.
 
+## Releasing (maintainers)
+
+Contributors never cut releases or publish to npm; this is here so the steps live in one place.
+
+1. **CHANGELOG first.** The entry goes into `CHANGELOG.md` on its own branch and pull request, so the tag points at a commit that carries it. `/seekter-git` §6 writes it in the house voice.
+2. **Release from that section.** `gh release create v<x.y.z> --notes-file <the section>`, on the merge commit on `main`. Then `git fetch origin --tags`.
+3. **Check the download.** `.github/workflows/release-asset.yml` attaches `seekter.zip`; `/releases/latest/download/seekter.zip` must answer 200.
+4. **npm, if the package should follow.** The `seekter` package on npm belongs to the maintainer's account, and publishing needs that account's browser sign-in, so nobody else can do this step and a fork should skip it. Raise the version in `npm/package.json` to the kit's, run `node npm/sync-readme.mjs` (a test fails while `npm/README.md` is stale), then `cd npm && npm publish --access public`. `npx seekter init` installs the newest GitHub release whatever the package version is, so this keeps the npm page in step; it is not what ships the kit.
+
 Questions, or a source you aren't sure is worth adding: open an issue and ask. A larger change starts as a proposal issue (see **Propose before you build** above). A measurement that turns out to be already known is a cheap thing to find out.
