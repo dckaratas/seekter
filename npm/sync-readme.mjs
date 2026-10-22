@@ -27,7 +27,9 @@ const relative = (p) => !/^(?:[a-z][a-z0-9+.-]*:|#|\/\/)/i.test(p);
 // The note goes under the title block (cover image, heading, version badge), so the page still
 // opens on the picture; with no badge line it goes first.
 export function npmReadme(text) {
-  const out = String(text)
+  // A Windows checkout has CRLF line endings, and "." does not match "\r", so the title block
+  // would not be found; the page is written with LF either way.
+  const out = String(text).replace(/\r\n/g, "\n")
     // Images: markdown and HTML.
     .replace(/(!\[[^\]]*\]\()([^)\s]+)(\))/g, (m, a, p, b) => (relative(p) ? a + RAW + p.replace(/^\.\//, "") + b : m))
     .replace(/(<img\b[^>]*\bsrc=")([^"]+)(")/g, (m, a, p, b) => (relative(p) ? a + RAW + p.replace(/^\.\//, "") + b : m))

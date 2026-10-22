@@ -1011,8 +1011,11 @@ describe("npx seekter init", () => {
     assert.doesNotMatch(out, /\[!IMPORTANT\]/);
     assert.ok(out.indexOf("This package installs Seekter") > out.indexOf("[![version]"), "the note sits under the title block");
     // The README shipped in npm/ is the generated one, so a publish never carries a stale copy.
-    const shipped = fs.readFileSync(path.join(REPO, "npm", "README.md"), "utf8");
+    // Compared with LF line endings: a Windows checkout turns both files into CRLF.
+    const lf = (t) => t.replace(/\r\n/g, "\n");
+    const shipped = lf(fs.readFileSync(path.join(REPO, "npm", "README.md"), "utf8"));
     assert.equal(shipped, npmReadme(fs.readFileSync(path.join(REPO, "README.md"), "utf8")), "run node npm/sync-readme.mjs");
+    assert.equal(npmReadme(lf(fs.readFileSync(path.join(REPO, "README.md"), "utf8")).replace(/\n/g, "\r\n")), shipped, "CRLF input gives the same page");
   });
 
   test("the package ships only its own files and depends on nothing", () => {
