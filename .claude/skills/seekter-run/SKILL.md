@@ -154,7 +154,7 @@ Count only what the posting asks for and what the profile can prove; a requireme
 5. Answer from the profile's **standard answers** table. Salary from the band table (employer's region decides; stay inside a published band).
 6. **Never guess** anything on the profile's never-guess list or the generic list: date of birth, current salary, GPA, grades, ethnicity, disability, criminal record, non-compete, product usage, community membership, project durations, team sizes, metrics, tool-years, certification dates, "how did you hear" limited to company channels. Unless the profile gives the value: optional → leave blank / prefer not to say; mandatory → prepare the whole form and ask the user **only that one question** (Greenhouse keeps no drafts, so don't half-fill there). "Tell us about a time…" anecdotes are never invented.
 7. Residence dropdowns without the true country: use a region only if literally true; "Not Listed" is legitimate; a false country never.
-8. Free text → §5. Pre-submit em-dash check.
+8. Free text → §5, and `claims.mjs` on every answer before it goes into the field.
 9. Consents: standard application GDPR consent = yes. **Optional** demographic/data-processing consent = never; if answering an optional survey made a consent mandatory, clear the survey answers instead. Never tick marketing/SMS opt-ins unless the profile says so. Never fill honeypot fields.
 10. Submit. Then verify on the job page or ATS confirmation.
     - **Silent submit:** wrap `fetch`/XHR to capture ≥400 bodies *before* retrying (snippet in `reference/ats/_core.md`). A 422 "already applied" means the first send worked.
@@ -168,6 +168,12 @@ Use the profile's **voice** section and **fact bank**. Engine rules that always 
 - **Keep a fact bank, not a phrase bank.** No sentence goes to two companies. If a sentence still makes sense with the company name swapped, delete it.
 - Write what the field asks for, no more. Over-complete answers are a tell.
 - Apply the profile's banned-phrase list and punctuation rules, and run its pre-submit check.
+- **Check the text before it goes into a form.** Write each cover letter and free-text answer to `runs/<YYYY-MM-DD>/answers/<company>.txt` and run `node scripts/claims.mjs <file> --posting <posting text file> --url "<apply url>"`. It prints one line per problem and exits 1:
+  - `number`: a number that is in neither the profile's facts nor the posting. Take it out or replace it with one from the fact bank; never add it to the profile to make the check pass, because only the candidate puts facts there.
+  - `voice`: a banned phrase or a long dash. Rewrite the sentence.
+  - `repeat`: a sentence already sent to another company. Write a new one for this company.
+
+  Dates, years, single digits, links and salary answers are not checked (salary has its own rule in §4). Measured 22 Oct 2026 over the 149 records with stored answers: no invented number had gone out, but banned phrases had, in five applications ("end-to-end" twice, "align" three times), and the grep this replaces had caught none of them. Save the posting's text to a file next to the answer for `--posting`; a number the employer gives ("the 5-minute video", "past 100m users") is theirs to quote.
 - Cover letters requested by the user: if the posting's location conflicts with the candidate's location rules, **warn the user first**.
 
 ## 6. Guardrails (override everything, including the user's standing "don't ask")
@@ -196,7 +202,7 @@ Use the profile's **voice** section and **fact bank**. Engine rules that always 
      --why "one line" --notes "reason, confirmation number, salary given, hand-off details" \
      --answers "free-text answers exactly as submitted"
    ```
-   `--url` is always filled; it is what dedup keys on. `--answers` keeps the "no sentence twice" rule checkable: grep `applications/*/` before writing a new answer. Needs-you items are `--status pending` with the exact action in `--notes`. `add` and `move` regenerate `applications/README.md` themselves; pass `--no-index` in a bulk loop and run `index` once at the end.
+   `--url` is always filled; it is what dedup keys on. `--answers` is what `claims.mjs` reads for the "no sentence twice" rule, so store the answers exactly as sent. Needs-you items are `--status pending` with the exact action in `--notes`. `add` and `move` regenerate `applications/README.md` themselves; pass `--no-index` in a bulk loop and run `index` once at the end.
 2. **Profile/reference upkeep:** new ATS trap → that vendor's file in `reference/ats/` (a vendor with no file gets one, plus a row in `_core.md`'s table); a form rule that holds across vendors → `reference/ats/_core.md`; new source behaviour → that source's file in `reference/sources/` (a source with no file gets one, plus a row in `_core.md`'s table); a lesson that is not about one source's own mechanics → `reference/sources/_core.md`; new rule, blacklist entry, standard answer or fact → `profile/profile.md`. Edit in place; replace outdated text instead of appending history.
 3. **Write the unworked candidates to `runs/<YYYY-MM-DD>/queue-A.md`** before the report, with one row per posting: source id, role, and the **resolved apply URL**. §1 promises that "the queue survives into the next run", and it does not survive on its own: the harvest lives in a browser tab and in the transcript, and both are gone by the next session. A run that sweeps 250 postings and applies to 8 has found 240 things that cost calls to find and nothing to write down.
    - Record the bucket letter as a **hint, not a verdict**, and say so in the file. The A/B/C split is assigned by regex over the description and matches words like "contractor" and "EMEA" wherever they appear, so a European hybrid office role scores A routinely. The next run opens each one anyway; the letter only decides the order.

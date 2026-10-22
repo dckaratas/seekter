@@ -181,13 +181,46 @@ export function draftsIn(master, name) {
 
 // ---------- validation ----------
 const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
-const norm = (s) => String(s ?? "").toLowerCase().replace(/[–—]/g, "-").replace(/×/g, "x").replace(/\s+/g, " ");
+export const norm = (s) => String(s ?? "").toLowerCase().replace(/[–—]/g, "-").replace(/×/g, "x").replace(/\s+/g, " ");
 
 // Every number a reader could check: 870, 50+, 15-20, 1,500, 2-3x, 5-10.
 const NUMBER = /\d[\d,.]*(?:\s?[-–]\s?\d[\d,.]*)?\s?(?:%|\+|x|×)?/g;
 
-function numbersIn(text) {
+export function numbersIn(text) {
   return [...new Set((text.match(NUMBER) || []).map((n) => n.trim().replace(/[.,]$/, "")).filter((n) => /\d/.test(n)))];
+}
+
+// The numbers a text may claim: those in the profile's facts. Only the sections that state facts
+// are read (identity, standard answers, salary bands, fact bank), because the rest of a profile
+// is full of numbers that are not claims (search ids, dates, counts of rows), and a short number
+// like "12" or "40" is almost always somewhere in it. A text with none of those sections is read
+// whole (a posting, an older profile). Ranges also count by their ends: "5-10" covers 5 and 10.
+const FACT_SECTIONS = /^##\s*(?:\d+\.\s*)?(identity|standard answers|salary|fact bank)/i;
+const numKey = (n) => norm(n).replace(/,(?=\d{3})/g, "").replace(/\s/g, "");
+export function factsOf(text, { sections = true } = {}) {
+  let src = String(text ?? "");
+  if (sections) {
+    const parts = src.split(/^(?=## )/m).filter((p) => FACT_SECTIONS.test(p));
+    if (parts.length) src = parts.join("\n");
+  }
+  const out = new Set();
+  for (const n of numbersIn(src)) {
+    const k = numKey(n);
+    out.add(k).add(k.replace(/[+%x]$/, ""));
+    for (const end of k.replace(/[+%x]$/, "").split("-")) if (end) out.add(end);
+  }
+  return out;
+}
+
+// A number found in the facts. A percentage or a multiplier has to be there as one; "15+" is
+// covered by "15". Years and single digits are not claims a reader checks, so they always pass.
+export function knownNumber(n, facts) {
+  const key = numKey(n);
+  if (/^(19|20)\d{2}$/.test(key) || /^\d$/.test(key)) return true;
+  if (facts.has(key)) return true;
+  if (/[%x]$/.test(key)) return false;
+  const bare = key.replace(/\+$/, "");
+  return facts.has(bare) || bare.split("-").every((e) => /^\d$/.test(e) || facts.has(e)) && bare.includes("-");
 }
 
 function ymFromWords(s) {
@@ -216,7 +249,7 @@ function workHistory(profile) {
 
 // The literal phrases of the profile's "Banned phrases" line; descriptions of patterns
 // ("a colon followed by...", "not just X but Y") are for a reader, not a search.
-function bannedPhrases(profile) {
+export function bannedPhrases(profile) {
   const m = profile.match(/Banned phrases:?\**:?\s*(.+)/i);
   if (!m) return [];
   return m[1].replace(/\.$/, "").split("·").flatMap((p) => {
@@ -290,7 +323,7 @@ export function validate(master, profile) {
     if (r.title && norm(r.title) !== norm(e.role) && !norm(r.title).includes(norm(e.role))) checks.push(`${e.company}: "${e.role}" here, "${r.title}" in the profile`);
   }
   // Numbers a reader could check must be in the profile's facts.
-  const prof = norm(profile).replace(/,(?=\d{3})/g, "");
+  const facts = factsOf(profile);
   const texts = [];
   for (const e of exp) { texts.push([e.company, e.description || ""]); for (const b of arr(e.bullets)) texts.push([`${e.company} ${b.id ?? ""}`, textOf(b)]); }
   for (const p of arr(master.projects)) texts.push([p.name, p.description || ""]);
@@ -299,11 +332,9 @@ export function validate(master, profile) {
   const seen = new Set();
   for (const [where, text] of texts) {
     for (const n of numbersIn(text)) {
-      const key = norm(n).replace(/,(?=\d{3})/g, "").replace(/\s/g, "");
-      if (/^(19|20)\d{2}$/.test(key) || /^\d$/.test(key) || seen.has(`${where}|${key}`)) continue;
-      seen.add(`${where}|${key}`);
-      const bare = key.replace(/[+%x]$/, "");
-      if (!prof.includes(key) && !prof.includes(bare) && !prof.includes(bare.replace("-", "–"))) checks.push(`${where}: "${n}" is not in the profile's facts`);
+      if (seen.has(`${where}|${n}`)) continue;
+      seen.add(`${where}|${n}`);
+      if (!knownNumber(n, facts)) checks.push(`${where}: "${n}" is not in the profile's facts`);
     }
   }
   // Voice: the profile's banned phrases, and long dashes.

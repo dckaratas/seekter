@@ -164,13 +164,15 @@ Two pages is the ceiling, checked on A4 and US Letter (`validate --pages`). Leng
 
 `validate` holds the resume to the profile: every number has to be in the profile's facts, dates and titles have to match its work history, the profile's banned phrases are flagged, and so are overlapping jobs and a resume likely longer than two pages. New text (a bullet, a headline, a summary) carries `"draft": true` until you approve it, and a PDF that would print a draft is refused unless `--drafts` asks for a review copy. The look is `templates/resume/resume.css`, the stylesheet of [seekter.dev](https://seekter.dev)'s resume editor; a single resume exported from the site (its `ResumeData` format) renders unchanged. `templates/resume/resume.example.json` is a fictional master to start from. If your browser is not in a standard place, set `SEEKTER_CHROME` to its binary.
 
+The same rules hold for what a form receives. Before a cover letter or a free-text answer goes into a field, `node scripts/claims.mjs <file> --posting <posting.txt>` flags any number that is in neither your profile's facts nor the posting, your banned phrases and long dashes, and any sentence of eight words or more already sent to another company.
+
 ## What's in the repo
 
 ```
 .claude/skills/     seekter-init · seekter-run · seekter-log · seekter-report · seekter-git
 reference/          sources/ (one file per job source) · ats/ (one file per application form system); each has a _core.md read first
 templates/          profile.md · settings.json · resume/ (the resume stylesheet, an example master resume and an example resume in the site's format)
-scripts/            seekter.mjs · freehire_sweep.mjs · employer_sweep.mjs · import_csv.mjs · resume.mjs · live.mjs
+scripts/            seekter.mjs · freehire_sweep.mjs · employer_sweep.mjs · import_csv.mjs · resume.mjs · live.mjs · claims.mjs
   providers/        one reader per application system for the employer watchlist
 tests/              tracker CLI tests: node --test tests/seekter.test.mjs
 .github/            leak scan and test workflows · issue and pull request templates

@@ -167,6 +167,8 @@ Facts (each one concrete: a product, a number, a tool combination, a decision):
 Stories for "tell us about a time…" questions (only these may be used):
 - {{STORY}}
 
+Longer stories can live in their own file; name it here by path (`profile/interviews/README.md`, for example) and `scripts/claims.mjs` reads its numbers as facts too.
+
 Stack: {{STACK}}
 
 Certifications (with dates): {{CERTIFICATIONS}}
