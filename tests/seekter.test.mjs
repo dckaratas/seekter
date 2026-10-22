@@ -106,7 +106,7 @@ describe("job identity", () => {
     // path, punycode the host and drop the ;params, and a tracked posting would pass
     // dedup as new. The port was checked against 2,447 real URLs; these are the edges.
     assert.equal(sk.jobKey("https://a.com/p;jsessionid=1?jobId=12345"), "a.com:12345");
-    assert.equal(sk.jobKey("http://user:pw@Host.COM:8080/a/b/"), "user:pw@host.com:8080/a/b");
+    assert.equal(sk.jobKey("http://user:pw@Example.COM:8080/a/b/"), "user:pw@example.com:8080/a/b");
     assert.equal(sk.jobKey("https://foo.com/?u=https://bar.com/jobs/1234567"), "foo.com#u=https://bar.com/jobs/1234567");
     assert.equal(sk.jobKey("example.com/careers/x/apply/"), "example.com/careers/x");
   });
