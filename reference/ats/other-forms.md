@@ -74,3 +74,10 @@
 - Phone fields can enforce the US pattern `999-999-9999` even when the country is not the US; a number with its country code fails with "The value does not match the pattern". Enter the national number in that shape.
 - The source picker is two-level and may have no LinkedIn entry at all; pick the truthful nearest one and say so in the record.
 - Multi-select questions are checkboxes named `…-<n>-qc`, single-choice ones radios named `…-<n>-qr`; matching on the label text and calling `.click()` registers on both. The eSignature step is the candidate's. Measured 21 Oct 2026.
+
+## Dueto (`api.dueto.io/Redirect/<id>` → `employer.dueto.io/position/<n>/<co>`)
+
+First measured 23 Oct 2026. No account. The LinkedIn apply link is a redirect that lands on the posting with the form under it.
+- Three steps. Step 1 is only the resume (`input[type=file]`, `file_upload` works); Next parses it and step 2 shows first name, last name, email, phone and LinkedIn already filled from the PDF. Read them back, then Next.
+- Step 3 holds the employer's own questions as plain text inputs with ids `positionPage_question-<n>-<m>` and **no `name` attribute**, so select by id. `form_input` by ref sets them; the native setter renders the value too, but use `form_input` so the framework's state follows.
+- The required consent box (`#positionPage_isUserPrivacyAgreementAccepted`) reads "I accept the Privacy Policy and the Terms of Service", which bundles the platform's terms of service with the data-processing consent. Accepting terms is the candidate's, so the form becomes a hand-off: fill everything, leave the box and Submit Application to them.
