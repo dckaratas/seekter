@@ -80,6 +80,7 @@ Section = vendor name; BambooHR, Revolut and account walls → Hand off; Viterbi
 | `live.peoplise.com/<co>/Application/Landing/<uuid>` | Peoplise |
 | `careers.mantu.com/brands/<brand>/jobs/<id>` (Amaris and the other Mantu brands) | Mantu careers (`other-forms.md`) |
 | `*.homerun.co` | Homerun |
+| `api.dueto.io/Redirect/<id>`, `employer.dueto.io/position/<n>/<co>` | Dueto (`other-forms.md`) |
 | Spanish UI, `s-rall-bn` cookie button | Viterbit |
 | Taleo, SuccessFactors, iCIMS, Worldline, Scalis, haystack.cv | account walls |
 
