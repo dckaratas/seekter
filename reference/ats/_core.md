@@ -40,6 +40,7 @@ it. One file per vendor makes that impossible to write, because there is nowhere
 | Rippling | `rippling.md` |
 | Sage HR | `sage-hr.md` |
 | SmartRecruiters, both the classic form and `oneclick-ui` | `smartrecruiters.md` |
+| Talentics (<co>.talentics.app/jobs/<uuid>) | 	alentics.md |
 | Teamtailor | `teamtailor.md` |
 | Tailored CV per posting, any vendor that takes a file (only with 	ailor_cv on) | 	ailored-cv.md |
 | Traffit | `traffit.md` |
