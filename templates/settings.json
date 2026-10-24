@@ -3,6 +3,8 @@
   "_title_filters": "title_keep = the title families worth opening, as one case-insensitive regex. title_drop = wrong seniority, wrong discipline, and the other industries that share your job title. Both are field-specific: build them from the candidate's target titles, then add false positives as runs reveal them. Worked example for a product designer: keep 'product design|\\bux\\b|design system|\\bdesigner\\b', drop 'junior|intern|head of|director|graphic|motion|industrial|mechanical|fpga|pcb|interior|fashion|textile|game artist' (the last eight are other industries whose jobs are also called 'designer').",
   "_same_company_days": "One application per company within this many days. Greenhouse lets employers auto-reject further applications to a department inside a window, silently. A live interview or offer holds the company whatever the date. See /seekter-run section 2. 0 keeps only same-day applications on hold; it does not turn the rule off.",
   "same_company_days": 30,
+  "_tailor_cv": "true: before every form that takes a CV file, build a CV for that posting from the profile (reordered and reworded, never a skill the profile lacks) and upload it instead of the default; where a board sends the CV stored in the account, tailor its cover-letter step instead. Costs a few minutes per form. See reference/ats/tailored-cv.md.",
+  "tailor_cv": false,
   "languages": [
     "en"
   ],
