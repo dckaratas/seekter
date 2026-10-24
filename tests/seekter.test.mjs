@@ -638,6 +638,14 @@ describe("tracker", () => {
     assert.equal(cli("move", "somefile.md", "--json", f).rc, 2);
   });
 
+  test("--json reads a file that starts with a UTF-8 byte-order mark", () => {
+    // Windows PowerShell 5.1's Set-Content -Encoding utf8 writes one.
+    const f = path.join(tmp, "bom.json");
+    fs.writeFileSync(f, "\uFEFF" + JSON.stringify({ company: "Acme", role: "Dev", status: "skipped", url: "https://jobs.example.com/acme/777777", no_index: true }));
+    const r = cli("add", "--json", f);
+    assert.equal(r.rc, 0, r.err);
+  });
+
   test("add takes a fit score from 1 to 5 and refuses anything else", () => {
     add({ company: "A", role: "D", url: "https://a.com/careers/1111111", status: "applied", fit: "4" });
     for (const bad of ["8", "0", "3.5", "good fit"]) {
