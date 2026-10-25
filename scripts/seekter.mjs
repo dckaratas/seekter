@@ -796,7 +796,6 @@ function cmdSettings(a) {
   if (!["email", "read"].includes((cfg.linkedin || {}).mode)) problems.push("linkedin.mode must be email or read");
   const days = cfg.same_company_days;
   if (typeof days !== "number" || !Number.isInteger(days) || days < 0) problems.push("same_company_days must be a whole number of days");
-  if (typeof (cfg.tailor_cv ?? false) !== "boolean") problems.push("tailor_cv must be true or false");
   const prof = path.join(ROOT, "profile", "profile.md");
   const text = fs.existsSync(prof) ? fs.readFileSync(prof, "utf8") : "";
   if (!text) problems.push("profile/profile.md is missing (run /seekter-init)");

@@ -42,7 +42,6 @@ it. One file per vendor makes that impossible to write, because there is nowhere
 | SmartRecruiters, both the classic form and `oneclick-ui` | `smartrecruiters.md` |
 | Talentics (`<co>.talentics.app/jobs/<uuid>`) | `talentics.md` |
 | Teamtailor | `teamtailor.md` |
-| Tailored CV per posting, any vendor that takes a file (only with `tailor_cv` on) | `tailored-cv.md` |
 | Traffit | `traffit.md` |
 | Trakstar Hire | `trakstar.md` |
 | Workable | `workable.md` |
