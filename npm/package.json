@@ -1,6 +1,6 @@
 {
   "name": "seekter",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "description": "Sets up Seekter, the open-source job-search kit for Claude Code: npx seekter init",
   "type": "module",
   "bin": {
