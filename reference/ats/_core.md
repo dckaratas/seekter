@@ -40,6 +40,7 @@ it. One file per vendor makes that impossible to write, because there is nowhere
 | Rippling | `rippling.md` |
 | Sage HR | `sage-hr.md` |
 | SmartRecruiters, both the classic form and `oneclick-ui` | `smartrecruiters.md` |
+| Talentics (`<co>.talentics.app/jobs/<uuid>`) | `talentics.md` |
 | Teamtailor | `teamtailor.md` |
 | Traffit | `traffit.md` |
 | Trakstar Hire | `trakstar.md` |
@@ -79,10 +80,12 @@ Section = vendor name; BambooHR, Revolut and account walls → Hand off; Viterbi
 | `opportunities.<co>.<tld>/jobs/<slug>` with a "Bizneo" tab title | Bizneo |
 | `live.peoplise.com/<co>/Application/Landing/<uuid>` | Peoplise |
 | `careers.mantu.com/brands/<brand>/jobs/<id>` (Amaris and the other Mantu brands) | Mantu careers (`other-forms.md`) |
+| `app.recruitcrafts.com/job-detail/<id>` | Recruitcrafts (`other-forms.md`) |
 | `*.homerun.co` | Homerun |
 | `api.dueto.io/Redirect/<id>`, `employer.dueto.io/position/<n>/<co>` | Dueto (`other-forms.md`) |
 | Spanish UI, `s-rall-bn` cookie button | Viterbit |
 | Taleo, SuccessFactors, iCIMS, Worldline, Scalis, haystack.cv | account walls |
+| `kariyer.garantibbva.com.tr/ilan/<req>/<id>/<slug>` | account wall: "Başvur" opens an email and password sign-in (measured 23 Oct 2026); the other button applies through LinkedIn, which Seekter never uses |
 
 ## Universal rules
 
