@@ -4,6 +4,77 @@ The version is the git tag; there is no version file. Each release is also on
 [the releases page](https://github.com/selfishprimate/seekter/releases) with the
 same text.
 
+## v0.13.0 — 25 October 2026
+
+Two new form systems, a Windows fix, and the workarounds that broke forms for
+the person taking them over. Most of the Turkish board notes come from
+[@dckaratas](https://github.com/dckaratas)'s runs. **Update if you run Seekter
+from Windows PowerShell 5.1:** every tracker write was refused there.
+
+### On Windows PowerShell 5.1, the tracker refused every write
+
+`Set-Content -Encoding utf8` in Windows PowerShell 5.1 writes a UTF-8
+byte-order mark, and `JSON.parse` rejects it. Since v0.12.0 the run writes
+every `add` and `move` through `--json FILE`, so on that shell each one failed
+with "is not valid JSON" and nothing was logged. `--json` now strips the mark.
+A test covers it.
+
+### Workarounds that left forms broken for the person taking over
+
+Three places where the way Seekter reached a hidden field made the form fail
+later, silently:
+
+- **Manatal** (careers-page.com): the reference said to give the hidden resume
+  input an id so it could be found. The page looks the file up by its own id,
+  on change and at submit, so with the id renamed Apply did nothing at all: no
+  request, no error. The candidate's own click on Browse also opened no picker.
+  Keep the id; undo the inline styles after the upload.
+- **Dice**: the Easy Apply wizard attaches whatever resume sits on the Dice
+  profile, a month old in the case measured. Replacing it means capturing the
+  file input instead of letting it open the system file dialog, and that patch
+  has to come off right after the upload: left in place, it made the
+  candidate's own upload buttons dead in that tab.
+- **Workday**: the Websites rows ignore values set from script (Review shows
+  "No Response"), and every URL typed in a session stays in Workday's state
+  after its row is deleted, so going back to add one more fails with "You
+  can't add duplicate website URLs" on every row. Enter the full list once.
+
+### New form systems
+
+- **Dueto** (`api.dueto.io` redirects from LinkedIn): three steps, no account.
+  Its one required consent accepts the platform's terms of service together
+  with the data-processing consent, so the form ends as a hand-off.
+- **Talentics** (`<co>.talentics.app`): no account, autofills from the resume,
+  and returns the parsed work history with every month as January. Correct the
+  dates before submitting; that list is what the recruiter reads.
+
+### Turkish boards
+
+- **Kariyer.net** replies arrive only on the site, at `/tum-basvurular`, never
+  by mail, so an inbox sweep alone makes every application there look
+  unanswered. A mandatory question can have no truthful option (a university
+  year on a senior posting): hand off.
+- **Recruitcrafts** checks the email only on Continue, after the form is built;
+  an address that already has an account turns it into a sign-in hand-off.
+- **Peoplise**'s first step differs per tenant; read each consent label before
+  deciding on a hand-off.
+- freehire's `tr.whatjobs.com` links no longer resolve at all; those records
+  are leads only.
+
+### Smaller
+
+- LinkedIn read mode: the token has to be read again after every navigation.
+  A 403 right after opening the notification feed is that, not a stop signal.
+- Indeed's home market came back empty a twelfth time; Dice's third measured
+  pass found eleven postings closed by explicit US-only lines.
+- Releasing is written down for maintainers in CONTRIBUTING.md, and npm stays
+  out of the `/seekter-git` skill.
+
+### Upgrading
+
+Nothing to migrate. Your `profile/`, `applications/` and `runs/` are
+git-ignored and untouched.
+
 ## v0.12.0 — 22 October 2026
 
 A security fix, an npm package, and four holes found by reading Seekter against
